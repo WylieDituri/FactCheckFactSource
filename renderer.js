@@ -44,16 +44,16 @@ function createWebview(url) {
   webview.style.width = '100%';
   webview.style.height = '100%';
   webview.setAttribute('allowpopups', '');
-  
+
   // Add event listeners
   webview.addEventListener('did-start-loading', () => {
     contentArea.style.opacity = '0.7';
   });
-  
+
   webview.addEventListener('did-stop-loading', () => {
     contentArea.style.opacity = '1';
   });
-  
+
   webview.addEventListener('new-window', (e) => {
     e.preventDefault();
     loadUrlInWebview(e.url);
@@ -69,7 +69,7 @@ function loadUrlInWebview(url) {
   contentArea.appendChild(webview);
   addressBar.value = url;
   addToHistory('webview', url);
-  
+
   // Show floating bookmark button
   floatingBookmark.classList.add('show');
 }
@@ -78,12 +78,12 @@ function loadUrlInWebview(url) {
 function renderHomePage() {
   // Hide floating bookmark button on home page
   floatingBookmark.classList.remove('show');
-  
+
   contentArea.innerHTML = `
     <div class="home-page">
       <div class="hero-section">
-        <h1 class="logo">Your Browser</h1>
-        <p class="tagline">Fast, private, and built for you</p>
+        <h1 class="logo">FactFinder</h1>
+        <p class="tagline">Trust the Truth</p>
         
         <div class="search-container">
           <div class="search-box-large">
@@ -92,36 +92,6 @@ function renderHomePage() {
               <path d="M15 15 L21 21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
             </svg>
             <input type="text" id="home-search" placeholder="Search anything..." />
-          </div>
-        </div>
-      </div>
-
-      <div class="quick-access">
-        <h2>Quick Access</h2>
-        <div class="quick-links">
-          <div class="quick-link" data-category="news">
-            <div class="quick-link-icon">📰</div>
-            <div class="quick-link-title">News</div>
-          </div>
-          <div class="quick-link" data-category="tech">
-            <div class="quick-link-icon">💻</div>
-            <div class="quick-link-title">Technology</div>
-          </div>
-          <div class="quick-link" data-category="science">
-            <div class="quick-link-icon">🔬</div>
-            <div class="quick-link-title">Science</div>
-          </div>
-          <div class="quick-link" data-category="entertainment">
-            <div class="quick-link-icon">🎬</div>
-            <div class="quick-link-title">Entertainment</div>
-          </div>
-          <div class="quick-link" data-category="sports">
-            <div class="quick-link-icon">⚽</div>
-            <div class="quick-link-title">Sports</div>
-          </div>
-          <div class="quick-link" data-category="business">
-            <div class="quick-link-icon">💼</div>
-            <div class="quick-link-title">Business</div>
           </div>
         </div>
       </div>
@@ -176,10 +146,10 @@ function renderHomePage() {
 function performSearch(query) {
   console.log('Performing search for:', query);
   addressBar.value = query;
-  
+
   // Check if it's a URL
-  if (query.startsWith('http://') || query.startsWith('https://') || 
-      (query.includes('.') && !query.includes(' ') && query.split('.').length >= 2)) {
+  if (query.startsWith('http://') || query.startsWith('https://') ||
+    (query.includes('.') && !query.includes(' ') && query.split('.').length >= 2)) {
     // It's a URL, load it directly
     const url = query.startsWith('http') ? query : 'https://' + query;
     loadUrlInWebview(url);
@@ -188,7 +158,7 @@ function performSearch(query) {
     const searchUrl = 'https://www.google.com/search?q=' + encodeURIComponent(query);
     loadUrlInWebview(searchUrl);
   }
-  
+
   // Add to search history
   searchHistory.unshift({ query, timestamp: Date.now() });
   if (searchHistory.length > 50) searchHistory.pop();
@@ -203,7 +173,7 @@ function searchByCategory(category) {
     sports: 'https://www.google.com/search?q=sports+news',
     business: 'https://www.google.com/search?q=business+news'
   };
-  
+
   const url = categoryUrls[category] || `https://www.google.com/search?q=${category}`;
   addressBar.value = url;
   loadUrlInWebview(url);
@@ -211,7 +181,7 @@ function searchByCategory(category) {
 
 function renderHistoryPage() {
   floatingBookmark.classList.remove('show');
-  
+
   contentArea.innerHTML = `
     <div class="history-page">
       <div class="page-header-simple">
@@ -272,7 +242,7 @@ function renderHistoryPage() {
 
 function renderBookmarksPage() {
   floatingBookmark.classList.remove('show');
-  
+
   contentArea.innerHTML = `
     <div class="bookmarks-page">
       <div class="page-header-simple">
@@ -358,6 +328,34 @@ function loadHistoryEntry(entry) {
   }
 }
 
+// New DOM element selections
+const magnetBtn = document.getElementById('magnet-btn');
+const menuBtn = document.getElementById('menu-btn');
+const dropdownMenu = document.getElementById('dropdown-menu');
+const settingsBtn = document.getElementById('settings-btn');
+
+// Menu handlers
+menuBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  dropdownMenu.classList.toggle('show');
+});
+
+document.addEventListener('click', () => {
+  dropdownMenu.classList.remove('show');
+});
+
+dropdownMenu.addEventListener('click', (e) => {
+  e.stopPropagation();
+});
+
+// Magnet button handler
+magnetBtn.addEventListener('click', () => {
+  // Placeholder for fact check logic
+  const currentUrl = addressBar.value;
+  alert(`🔍 Scanning ${currentUrl} for facts...`);
+  // Here you would trigger your fact checking logic
+});
+
 // Navigation handlers
 backBtn.addEventListener('click', navigateBack);
 forwardBtn.addEventListener('click', navigateForward);
@@ -369,14 +367,23 @@ homeBtn.addEventListener('click', () => {
 });
 
 historyBtn.addEventListener('click', () => {
+  dropdownMenu.classList.remove('show');
   addToHistory('history');
   renderHistoryPage();
 });
 
 bookmarksBtn.addEventListener('click', () => {
+  dropdownMenu.classList.remove('show');
   addToHistory('bookmarks');
   renderBookmarksPage();
 });
+
+if (settingsBtn) {
+  settingsBtn.addEventListener('click', () => {
+    dropdownMenu.classList.remove('show');
+    alert('Settings coming soon!');
+  });
+}
 
 // Floating bookmark button
 floatingBookmark.addEventListener('click', () => {
@@ -407,14 +414,14 @@ document.addEventListener('keydown', (e) => {
     addToHistory('history');
     renderHistoryPage();
   }
-  
+
   // Cmd/Ctrl+B for bookmarks
   if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
     e.preventDefault();
     addToHistory('bookmarks');
     renderBookmarksPage();
   }
-  
+
   // Cmd/Ctrl+D for bookmark current page
   if ((e.metaKey || e.ctrlKey) && e.key === 'd') {
     e.preventDefault();
@@ -424,7 +431,7 @@ document.addEventListener('keydown', (e) => {
       addBookmark(title, url);
     }
   }
-  
+
   // Cmd/Ctrl+L to focus address bar
   if ((e.metaKey || e.ctrlKey) && e.key === 'l') {
     e.preventDefault();

@@ -7,7 +7,7 @@
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
   overflow: hidden;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #001a08 0%, #000000 100%);
   color: #e0e0e0;
 }
 
@@ -101,9 +101,87 @@ body {
   color: rgba(255, 255, 255, 0.5);
 }
 
+/* Toolbar Actions */
 .toolbar-actions {
   display: flex;
-  gap: 6px;
+  gap: 12px;
+  align-items: center;
+}
+
+/* Magnet Button */
+.magnet-btn {
+  color: #00ff9d;
+  background: rgba(0, 255, 157, 0.1);
+  border: 1px solid rgba(0, 255, 157, 0.2);
+  box-shadow: 0 0 10px rgba(0, 255, 157, 0.1);
+}
+
+.magnet-btn:hover {
+  background: rgba(0, 255, 157, 0.2);
+  box-shadow: 0 0 15px rgba(0, 255, 157, 0.3);
+  transform: scale(1.05);
+}
+
+/* Menu Container */
+.menu-container {
+  position: relative;
+}
+
+/* Dropdown Menu */
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 10px;
+  background: rgba(10, 10, 10, 0.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 8px;
+  min-width: 200px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  transform: translateY(-10px);
+  pointer-events: none;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 1000;
+}
+
+.dropdown-menu.show {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.menu-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  color: #e0e0e0;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.menu-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.menu-icon {
+  font-size: 16px;
+}
+
+.menu-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.1);
+  margin: 6px 0;
 }
 
 /* Content Area */
@@ -135,7 +213,7 @@ body {
 /* Home Page */
 .home-page {
   min-height: 100%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #000000 0%, #001a08 100%);
 }
 
 .hero-section {
@@ -166,7 +244,7 @@ body {
 }
 
 .search-box-large {
-  background: rgba(255, 255, 255, 0.95);
+  background: rgba(1, 32, 13, 0.95);
   border-radius: 50px;
   padding: 8px 24px;
   display: flex;
@@ -182,7 +260,7 @@ body {
 }
 
 .search-icon-large {
-  color: #667eea;
+  color: #000000;
   flex-shrink: 0;
 }
 
@@ -190,6 +268,7 @@ body {
   flex: 1;
   border: none;
   background: transparent;
+  font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
   font-size: 18px;
   padding: 16px 0;
   color: #333;
@@ -303,7 +382,7 @@ body {
 
 /* Search Results Page */
 .search-results-page {
-  background: #f8f9fa;
+  background: #001a08;
   min-height: 100%;
   padding: 40px;
 }
