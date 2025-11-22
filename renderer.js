@@ -52,6 +52,27 @@ function createWebview(url) {
 
   webview.addEventListener('did-stop-loading', () => {
     contentArea.style.opacity = '1';
+    
+    // Inject fact-check content script into webview
+    injectFactCheckIntoWebview(webview);
+  });
+  
+  // Listen for console messages from webview for fact-check requests
+  webview.addEventListener('console-message', (e) => {
+    if (e.message && e.message.startsWith('FACT_CHECK_REQUEST:')) {
+      try {
+        const data = JSON.parse(e.message.replace('FACT_CHECK_REQUEST:', ''));
+        const text = data.text;
+        console.log('📥 Received fact-check request from webview (console):', text.substring(0, 50));
+        
+        // Call the fact-check function
+        if (typeof window.factCheckHighlightedText === 'function') {
+          window.factCheckHighlightedText(text);
+        }
+      } catch (err) {
+        console.error('Failed to parse fact-check request:', err);
+      }
+    }
   });
 
   webview.addEventListener('new-window', (e) => {
@@ -900,8 +921,48 @@ if (voiceModal) {
   });
 }
 
+// Inject fact-check script into webview
+async function injectFactCheckIntoWebview(webview) {
+  try {
+    const scriptContent = await fetch('webview-content-script.js').then(r => r.text());
+    await webview.executeJavaScript(scriptContent);
+    console.log('✅ Injected fact-check script into webview');
+  } catch (error) {
+    console.error('Failed to inject script:', error);
+  }
+}
+
+// Listen for fact-check requests from webviews (multiple methods)
+window.addEventListener('message', async (event) => {
+  if (event.data && event.data.type === 'FACT_CHECK_REQUEST') {
+    const text = event.data.text;
+    console.log('📥 Received fact-check request from webview (postMessage)');
+    
+    if (typeof window.factCheckHighlightedText === 'function') {
+      await window.factCheckHighlightedText(text);
+    }
+  }
+});
+
+// Listen for IPC messages from main process
+if (typeof require !== 'undefined') {
+  try {
+    const { ipcRenderer } = require('electron');
+    ipcRenderer.on('fact-check-text', async (event, text) => {
+      console.log('📥 Received fact-check request via IPC:', text.substring(0, 50));
+      
+      if (typeof window.factCheckHighlightedText === 'function') {
+        await window.factCheckHighlightedText(text);
+      }
+    });
+  } catch (err) {
+    console.log('IPC not available in renderer');
+  }
+}
+
 // Initialize
 console.log('Browser initializing...');
 addToHistory('home');
 renderHomePage();
 console.log('Browser initialized!');
+

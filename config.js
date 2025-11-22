@@ -35,6 +35,16 @@ const config = {
     defaultTask: 'analyze', // Default AI task: summarize, analyze, fact-check, extract, sentiment, questions
   },
   
+  // OpenAI ChatGPT Configuration
+  openai: {
+    // API key loaded from .env file via OPENAI_API_KEY variable
+    get apiKey() {
+      return getEnvVar('OPENAI_API_KEY');
+    },
+    model: 'gpt-4o', // GPT-4 Turbo model
+    baseUrl: 'https://api.openai.com/v1',
+  },
+  
   // Recording Settings
   recording: {
     maxDuration: 300, // Maximum recording duration in seconds (5 minutes)

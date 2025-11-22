@@ -145,21 +145,34 @@ async function processImage(imageDataUrl) {
 }
 
 async function extractTextFromImage(imageDataUrl) {
-  const apiKey = window.process && window.process.env && window.process.env.GOOGLE_API_KEY;
+  // Try Gemini first, fallback to OpenAI
+  const geminiKey = window.process && window.process.env && window.process.env.GOOGLE_API_KEY;
+  const openaiKey = window.process && window.process.env && window.process.env.OPENAI_API_KEY;
   
-  if (!apiKey) {
-    throw new Error('Google API key not configured');
-  }
-  
-  const geminiClient = new GeminiClient(apiKey);
   const base64Image = imageDataUrl.split(',')[1];
-  
   const prompt = 'Extract all text visible in this image. Return only the text content, preserving line breaks and formatting where applicable.';
   
-  const response = await geminiClient.generateContentWithImage(prompt, base64Image);
+  // Try Gemini first
+  if (geminiKey) {
+    try {
+      const geminiClient = new GeminiClient(geminiKey);
+      const response = await geminiClient.generateContentWithImage(prompt, base64Image);
+      console.log('✅ Text extracted with Gemini Vision');
+      return response.text;
+    } catch (error) {
+      console.warn('Gemini failed, trying OpenAI:', error);
+    }
+  }
   
-  console.log('✅ Text extracted from image');
-  return response.text;
+  // Fallback to OpenAI
+  if (openaiKey) {
+    const openaiClient = new OpenAIClient(openaiKey);
+    const response = await openaiClient.generateContentWithImage(prompt, base64Image);
+    console.log('✅ Text extracted with OpenAI Vision (GPT-4)');
+    return response.text;
+  }
+  
+  throw new Error('No AI API key configured. Add GOOGLE_API_KEY or OPENAI_API_KEY to your .env file.');
 }
 
 async function autoFactCheckImage(extractedText) {
@@ -175,10 +188,21 @@ async function autoFactCheckImage(extractedText) {
   `;
   
   try {
-    const apiKey = window.process && window.process.env && window.process.env.GOOGLE_API_KEY;
-    if (!apiKey) throw new Error('Google API key not configured');
+    // Try Gemini first, fallback to OpenAI
+    const geminiKey = window.process && window.process.env && window.process.env.GOOGLE_API_KEY;
+    const openaiKey = window.process && window.process.env && window.process.env.OPENAI_API_KEY;
     
-    const geminiClient = new GeminiClient(apiKey);
+    let client, modelName;
+    
+    if (geminiKey) {
+      client = new GeminiClient(geminiKey);
+      modelName = 'Gemini AI';
+    } else if (openaiKey) {
+      client = new OpenAIClient(openaiKey);
+      modelName = 'ChatGPT';
+    } else {
+      throw new Error('No AI API key configured');
+    }
     
     const factCheckPrompt = `You are a fact-checking AI agent. Analyze the following text extracted from an image and provide a detailed fact-check report.
 
@@ -194,12 +218,13 @@ Please provide:
 
 Format your response in a clear, structured way.`;
 
-    const response = await geminiClient.generateContent(factCheckPrompt);
+    const response = await client.generateContent(factCheckPrompt);
     
     window.currentAIResponse = {
       task: 'fact-check',
       input: { extractedText, timestamp: new Date().toISOString() },
       response: response.text,
+      model: modelName,
       timestamp: new Date().toISOString()
     };
     
@@ -214,14 +239,14 @@ Format your response in a clear, structured way.`;
         <div style="color: #333; line-height: 1.8;">${formattedResponse}</div>
       </div>
       <div style="margin-top: 16px; padding: 16px; background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); border-radius: 8px; border-left: 4px solid #4caf50;">
-        <strong style="color: #2e7d32; font-size: 16px;">💾 Response saved to JSON</strong>
+        <strong style="color: #2e7d32; font-size: 16px;">✅ Analysis by ${modelName}</strong>
         <div style="margin-top: 12px;">
           <button onclick="saveCaptureJSON()" style="padding: 10px 20px; background: #4caf50; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px;">Download Full Report (JSON)</button>
         </div>
       </div>
     `;
     
-    console.log('✅ Fact-check complete');
+    console.log(`✅ Fact-check complete using ${modelName}`);
   } catch (error) {
     console.error('❌ Fact-check error:', error);
     responseContainer.innerHTML = `
