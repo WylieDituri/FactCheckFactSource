@@ -82,8 +82,8 @@ function renderHomePage() {
   contentArea.innerHTML = `
     <div class="home-page">
       <div class="hero-section">
-        <h1 class="logo">Your Browser</h1>
-        <p class="tagline">Fast, private, and built for you</p>
+        <h1 class="logo">FactFinder</h1>
+        <p class="tagline">Trust the Truth</p>
         
         <div class="search-container">
           <div class="search-box-large">
@@ -92,36 +92,6 @@ function renderHomePage() {
               <path d="M15 15 L21 21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
             </svg>
             <input type="text" id="home-search" placeholder="Search anything..." />
-          </div>
-        </div>
-      </div>
-
-      <div class="quick-access">
-        <h2>Quick Access</h2>
-        <div class="quick-links">
-          <div class="quick-link" data-category="news">
-            <div class="quick-link-icon">📰</div>
-            <div class="quick-link-title">News</div>
-          </div>
-          <div class="quick-link" data-category="tech">
-            <div class="quick-link-icon">💻</div>
-            <div class="quick-link-title">Technology</div>
-          </div>
-          <div class="quick-link" data-category="science">
-            <div class="quick-link-icon">🔬</div>
-            <div class="quick-link-title">Science</div>
-          </div>
-          <div class="quick-link" data-category="entertainment">
-            <div class="quick-link-icon">🎬</div>
-            <div class="quick-link-title">Entertainment</div>
-          </div>
-          <div class="quick-link" data-category="sports">
-            <div class="quick-link-icon">⚽</div>
-            <div class="quick-link-title">Sports</div>
-          </div>
-          <div class="quick-link" data-category="business">
-            <div class="quick-link-icon">💼</div>
-            <div class="quick-link-title">Business</div>
           </div>
         </div>
       </div>
