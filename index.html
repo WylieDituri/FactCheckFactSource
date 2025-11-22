@@ -45,6 +45,15 @@
       </div>
 
       <div class="toolbar-actions">
+        <button class="nav-btn" id="voice-record-btn" title="Voice Recording">
+          <svg width="20" height="20" viewBox="0 0 20 20">
+            <rect x="8" y="3" width="4" height="8" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
+            <path d="M5 10 C5 13 7 15 10 15 C13 15 15 13 15 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <line x1="10" y1="15" x2="10" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <line x1="7" y1="18" x2="13" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </button>
+
         <button class="nav-btn magnet-btn" id="magnet-btn" title="Fact Check">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
             stroke-linecap="round" stroke-linejoin="round">
@@ -89,8 +98,32 @@
     <button class="floating-bookmark" id="floating-bookmark" title="Bookmark this page">
       🔖
     </button>
+
+    <!-- Voice Recording Modal -->
+    <div class="voice-modal" id="voice-modal">
+      <div class="voice-modal-content">
+        <button class="voice-modal-close" id="voice-modal-close">×</button>
+        <div class="voice-modal-header">
+          <h2>Voice Recording</h2>
+        </div>
+        <div class="voice-modal-body">
+          <div class="recording-visualizer" id="recording-visualizer">
+            <div class="mic-icon" id="mic-icon">🎤</div>
+            <div class="recording-status" id="recording-status">Click to start recording</div>
+            <div class="recording-timer" id="recording-timer">00:00</div>
+          </div>
+          <button class="record-button" id="record-button">
+            <span id="record-button-text">Start Recording</span>
+          </button>
+          <div class="transcription-result" id="transcription-result"></div>
+        </div>
+      </div>
+    </div>
   </div>
 
+  <script src="config.js"></script>
+  <script src="fish-audio-client.js"></script>
+  <script src="gemini-client.js"></script>
   <script src="renderer.js"></script>
 </body>
 
