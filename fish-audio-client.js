@@ -7,18 +7,7 @@
 
 class FishAudioClient {
   constructor(apiKey) {
-    // Use the API key passed as parameter
-    // If not provided, try to get from window.process.env directly
-    if (!apiKey && typeof window !== 'undefined' && window.process && window.process.env) {
-      apiKey = window.process.env.FISH_AUDIO_API_KEY;
-    }
-    
     this.apiKey = apiKey || '';
-    
-    // Debug logging
-    console.log('🔑 FishAudioClient initialized');
-    console.log('  - API Key:', this.apiKey ? `✅ ${this.apiKey.substring(0, 15)}...` : '❌ NO KEY');
-    
     this.baseUrl = 'https://api.fish.audio/v1';
   }
 
@@ -33,43 +22,31 @@ class FishAudioClient {
       throw new Error('Fish Audio API key is not configured');
     }
 
+    // Simple STT conversion - just send audio
     const formData = new FormData();
-    formData.append('audio', audioBlob, 'recording.webm');
-    formData.append('language', options.language || 'en-US');
+    formData.append('audio', audioBlob);
+
+    const response = await fetch(`${this.baseUrl}/asr`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.apiKey}`
+      },
+      body: formData
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Fish Audio API error: ${response.status}`);
+    }
+
+    const res = await response.json();
     
-    if (options.model) {
-      formData.append('model', options.model);
-    }
-
-    try {
-      const response = await fetch(`${this.baseUrl}/asr`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
-          // Don't set Content-Type, let browser set it with boundary for FormData
-        },
-        body: formData
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(`Fish Audio API error: ${response.status} - ${errorData.message || 'Unknown error'}`);
-      }
-
-      const result = await response.json();
-      
-      return {
-        text: result.text || result.transcription || '',
-        confidence: result.confidence,
-        language: result.language,
-        timestamp: new Date().toISOString(),
-        audioSize: audioBlob.size,
-        format: audioBlob.type
-      };
-    } catch (error) {
-      console.error('Fish Audio transcription error:', error);
-      throw error;
-    }
+    return {
+      text: res.text || '',
+      timestamp: new Date().toISOString(),
+      audioSize: audioBlob.size,
+      format: audioBlob.type
+    };
   }
 
   /**
@@ -78,6 +55,68 @@ class FishAudioClient {
    */
   isConfigured() {
     return !!this.apiKey;
+  }
+
+  /**
+   * Test the API key by checking account status
+   * @returns {Promise<Object>} - Account info or error
+   */
+  async testAPIKey() {
+    if (!this.apiKey) {
+      return { 
+        success: false, 
+        error: 'No API key configured' 
+      };
+    }
+
+    console.log('🔑 Testing Fish Audio API key...');
+    
+    try {
+      // Try to access a simple endpoint to verify the key
+      const response = await fetch(`${this.baseUrl}/models`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`
+        }
+      });
+
+      console.log('  - Response status:', response.status);
+
+      if (response.status === 401 || response.status === 403) {
+        return {
+          success: false,
+          error: 'Invalid API key - Please check your Fish Audio dashboard'
+        };
+      }
+
+      if (response.status === 402) {
+        return {
+          success: false,
+          error: 'Insufficient balance - Please add credits to your Fish Audio account'
+        };
+      }
+
+      if (response.ok) {
+        const data = await response.json();
+        return {
+          success: true,
+          message: 'API key is valid',
+          data: data
+        };
+      }
+
+      return {
+        success: false,
+        error: `Unexpected response: ${response.status}`
+      };
+
+    } catch (error) {
+      console.error('  - Test failed:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
   }
 }
 

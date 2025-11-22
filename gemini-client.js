@@ -7,21 +7,9 @@
 
 class GeminiClient {
   constructor(apiKey) {
-    // Try to get API key from: 1) parameter, 2) config, 3) environment
-    const configKey = (typeof BrowserConfig !== 'undefined' && BrowserConfig.gemini && BrowserConfig.gemini.apiKey);
-    const envKey = (typeof window !== 'undefined' && window.process && window.process.env && window.process.env.GOOGLE_API_KEY);
-    
-    this.apiKey = apiKey || configKey || envKey || '';
-    
-    // Debug logging
-    console.log('GeminiClient initialized:');
-    console.log('- Parameter key:', apiKey ? 'provided' : 'not provided');
-    console.log('- Config key:', configKey ? `${configKey.substring(0, 10)}...` : 'not found');
-    console.log('- Env key:', envKey ? `${envKey.substring(0, 10)}...` : 'not found');
-    console.log('- Using key:', this.apiKey ? `${this.apiKey.substring(0, 10)}...` : 'NONE');
-    
+    this.apiKey = apiKey || '';
     this.baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
-    this.model = 'gemini-pro'; // Default model
+    this.model = 'gemini-2.5-pro';
   }
 
   /**
@@ -98,6 +86,53 @@ class GeminiClient {
       console.error('Gemini API error:', error);
       throw error;
     }
+  }
+
+  /**
+   * Generate content with image using Gemini Vision API
+   * @param {string} prompt - The prompt to send to the model
+   * @param {string} base64Image - The base64 encoded image
+   * @param {Object} options - Additional options
+   * @returns {Promise<Object>} - The model's response
+   */
+  async generateContentWithImage(prompt, base64Image, options = {}) {
+    if (!this.apiKey) {
+      throw new Error('Gemini API key is not configured');
+    }
+
+    const model = options.model || this.model;
+    const url = `${this.baseUrl}/models/${model}:generateContent?key=${this.apiKey}`;
+
+    const requestBody = {
+      contents: [{
+        parts: [
+          { text: prompt },
+          { 
+            inline_data: { 
+              mime_type: 'image/jpeg',
+              data: base64Image 
+            } 
+          }
+        ]
+      }]
+    };
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.error?.message || errorData.message || `HTTP ${response.status}`;
+      throw new Error(`Gemini Vision API error: ${response.status} - ${errorMessage}`);
+    }
+
+    const data = await response.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    
+    return { text, fullResponse: data, model };
   }
 
   /**

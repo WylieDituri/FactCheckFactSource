@@ -54,6 +54,14 @@
           </svg>
         </button>
 
+        <button class="nav-btn" id="camera-btn" title="Camera Capture">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+            <circle cx="12" cy="13" r="4"></circle>
+          </svg>
+        </button>
+
         <button class="nav-btn magnet-btn" id="magnet-btn" title="Fact Check">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
             stroke-linecap="round" stroke-linejoin="round">
@@ -119,12 +127,38 @@
         </div>
       </div>
     </div>
+
+    <!-- Camera Capture Modal -->
+    <div class="voice-modal" id="camera-modal">
+      <div class="voice-modal-content">
+        <button class="voice-modal-close" id="camera-modal-close">×</button>
+        <div class="voice-modal-header">
+          <h2>Camera Capture & Text Extraction</h2>
+        </div>
+        <div class="voice-modal-body">
+          <div class="recording-visualizer" id="camera-visualizer">
+            <div class="mic-icon" id="camera-icon">📷</div>
+            <div class="recording-status" id="camera-status">Ready to capture</div>
+          </div>
+          
+          <video id="camera-preview" autoplay playsinline style="width: 100%; max-width: 500px; border-radius: 12px; display: none; margin: 16px auto; border: 3px solid #667eea;"></video>
+          <canvas id="camera-canvas" style="display: none;"></canvas>
+          <img id="captured-image" style="width: 100%; max-width: 500px; border-radius: 12px; display: none; margin: 16px auto; border: 3px solid #4caf50;" />
+          
+          <button class="record-button" id="capture-button">
+            <span id="capture-button-text">Start Camera</span>
+          </button>
+          <div class="transcription-result" id="ocr-result"></div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script src="config.js"></script>
   <script src="fish-audio-client.js"></script>
   <script src="gemini-client.js"></script>
   <script src="renderer.js"></script>
+  <script src="camera-handler.js"></script>
 </body>
 
 </html>

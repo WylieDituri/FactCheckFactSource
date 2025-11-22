@@ -502,8 +502,8 @@ async function startRecording() {
     
     mediaRecorder.onstop = async () => {
       const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+      console.log('🎤 Audio recorded:', (audioBlob.size / 1024).toFixed(2), 'KB');
       await processAudio(audioBlob);
-      
       stream.getTracks().forEach(track => track.stop());
     };
     
@@ -564,24 +564,11 @@ async function processAudio(audioBlob) {
       <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px;">
         <button onclick="copyTranscription()" style="padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 14px;">Copy</button>
         <button onclick="saveTranscriptionAsJSON()" style="padding: 8px 16px; background: #4caf50; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 14px;">Save JSON</button>
-      </div>
-      <div style="border-top: 1px solid #e0e0e0; padding-top: 12px; margin-top: 12px;">
-        <div style="margin-bottom: 8px;">
-          <strong style="color: #667eea;">AI Analysis:</strong>
-        </div>
-        <select id="ai-task-select" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; margin-bottom: 8px; font-size: 14px;">
-          <option value="analyze">Analyze Content</option>
-          <option value="summarize">Summarize</option>
-          <option value="fact-check">Fact Check</option>
-          <option value="extract">Extract Key Points</option>
-          <option value="sentiment">Sentiment Analysis</option>
-          <option value="questions">Generate Questions</option>
-        </select>
-        <button onclick="sendToGemini()" style="width: 100%; padding: 10px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 14px;">Send to Gemini AI 🤖</button>
+        <button onclick="autoFactCheck()" style="padding: 8px 16px; background: #ff6b6b; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 14px;">🔍 Fact Check</button>
       </div>
       <div id="ai-response-container" style="display: none; margin-top: 16px; padding: 16px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #667eea;">
         <div style="margin-bottom: 8px;">
-          <strong style="color: #667eea;">AI Response:</strong>
+          <strong style="color: #667eea;">Fact Check Results:</strong>
         </div>
         <div id="ai-response-text" style="color: #333; line-height: 1.6; white-space: pre-wrap;"></div>
       </div>
@@ -589,6 +576,10 @@ async function processAudio(audioBlob) {
     
     recordingStatus.textContent = 'Transcription complete!';
     window.currentTranscription = transcription;
+    
+    // Automatically send to agent for fact-checking
+    console.log('🤖 Auto-sending to AI agent for fact-checking...');
+    setTimeout(() => autoFactCheck(), 500);
     
   } catch (error) {
     console.error('Error transcribing audio:', error);
@@ -603,40 +594,32 @@ async function processAudio(audioBlob) {
 }
 
 async function transcribeWithFishAudio(audioBlob) {
-  // Get API key directly from environment variable
   const apiKey = window.process && window.process.env && window.process.env.FISH_AUDIO_API_KEY;
   
-  console.log('🔑 Transcription API Key Check:');
-  console.log('  - window.process exists:', !!window.process);
-  console.log('  - window.process.env exists:', !!(window.process && window.process.env));
-  console.log('  - API Key found:', apiKey ? `✅ ${apiKey.substring(0, 15)}...` : '❌ Not found');
-  
-  if (typeof FishAudioClient !== 'undefined' && apiKey) {
-    // Pass API key directly to the client
-    const fishClient = new FishAudioClient(apiKey);
-    
-    try {
-      console.log('✅ Using Fish Audio API for transcription');
-      return await fishClient.transcribe(audioBlob, {
-        language: 'en-US'
-      });
-    } catch (error) {
-      console.error('❌ Fish Audio API failed:', error);
-      // Fall through to fallback
-    }
-  } else {
-    console.warn('⚠️ Fish Audio API key not found in window.process.env.FISH_AUDIO_API_KEY');
+  if (!apiKey) {
+    console.error('❌ No Fish Audio API key found');
+    return {
+      text: 'Error: No API key configured. Add FISH_AUDIO_API_KEY to your .env file.',
+      timestamp: new Date().toISOString(),
+      fallback: true
+    };
   }
   
-  // Fallback transcription
-  return {
-    text: `Audio recorded successfully (${(audioBlob.size / 1024).toFixed(2)} KB)\n\n⚠️ To enable Fish Audio transcription:\n1. Get your API key from https://fish.audio\n2. Add it to your .env file:\n   FISH_AUDIO_API_KEY=your_key_here\n3. Restart the app\n\nFor now, the audio has been recorded but not transcribed.`,
-    timestamp: new Date().toISOString(),
-    audioSize: audioBlob.size,
-    format: audioBlob.type,
-    fallback: true
-  };
+  try {
+    const fishClient = new FishAudioClient(apiKey);
+    const res = await fishClient.transcribe(audioBlob);
+    console.log('✅ Transcription:', res.text);
+    return res;
+  } catch (error) {
+    console.error('❌ Fish Audio failed:', error.message);
+    return {
+      text: `Transcription failed: ${error.message}\n\nCheck:\n1. API key is valid at fish.audio/account\n2. Account has sufficient credits\n3. Audio format is supported`,
+      timestamp: new Date().toISOString(),
+      fallback: true
+    };
+  }
 }
+
 
 // Global functions for transcription actions
 window.copyTranscription = function() {
@@ -670,6 +653,168 @@ window.saveTranscriptionAsJSON = function() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     alert('✅ Transcription saved as JSON!');
+  }
+};
+
+// Format fact-check response from markdown to HTML
+function formatFactCheckResponse(text) {
+  let html = text;
+  
+  // Convert headers (### text)
+  html = html.replace(/###\s*\*\*(.*?)\*\*/g, '<h3 style="color: #d32f2f; font-size: 20px; margin: 20px 0 12px 0; font-weight: 700;">$1</h3>');
+  html = html.replace(/###\s*(.*?)$/gm, '<h3 style="color: #d32f2f; font-size: 20px; margin: 20px 0 12px 0; font-weight: 700;">$1</h3>');
+  
+  // Convert horizontal rules (*** or ---)
+  html = html.replace(/^\*\*\*$/gm, '<hr style="border: none; border-top: 2px solid #ffcdd2; margin: 16px 0;">');
+  html = html.replace(/^---$/gm, '<hr style="border: none; border-top: 2px solid #ffcdd2; margin: 16px 0;">');
+  
+  // Convert bullet lists (* item)
+  html = html.replace(/^\*\s+(.+)$/gm, '<li style="margin: 8px 0; color: #424242;">$1</li>');
+  
+  // Wrap consecutive <li> tags in <ul>
+  html = html.replace(/(<li[^>]*>.*?<\/li>\s*)+/gs, (match) => {
+    return '<ul style="margin: 12px 0; padding-left: 24px; list-style-type: disc;">' + match + '</ul>';
+  });
+  
+  // Convert bold text (**text**)
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong style="color: #c62828; font-weight: 700;">$1</strong>');
+  
+  // Convert italic text (*text*)
+  html = html.replace(/\*(.+?)\*/g, '<em style="color: #666;">$1</em>');
+  
+  // Convert line breaks to <br> or <p>
+  html = html.replace(/\n\n/g, '</p><p style="margin: 12px 0; color: #333;">');
+  html = html.replace(/\n/g, '<br>');
+  
+  // Wrap in paragraph if not already wrapped
+  if (!html.startsWith('<')) {
+    html = '<p style="margin: 12px 0; color: #333;">' + html + '</p>';
+  }
+  
+  // Add special styling for verification status
+  html = html.replace(/(TRUE|FALSE|PARTIALLY TRUE|UNVERIFIABLE)/g, (match) => {
+    const colors = {
+      'TRUE': '#4caf50',
+      'FALSE': '#f44336',
+      'PARTIALLY TRUE': '#ff9800',
+      'UNVERIFIABLE': '#9e9e9e'
+    };
+    return `<span style="background: ${colors[match]}; color: white; padding: 4px 12px; border-radius: 16px; font-weight: 700; font-size: 14px;">${match}</span>`;
+  });
+  
+  // Add special styling for confidence level
+  html = html.replace(/(High|Medium|Low)(?=\s*$)/gm, (match) => {
+    const colors = {
+      'High': '#4caf50',
+      'Medium': '#ff9800',
+      'Low': '#f44336'
+    };
+    return `<span style="background: ${colors[match]}; color: white; padding: 6px 16px; border-radius: 20px; font-weight: 700; font-size: 16px; display: inline-block; margin-top: 8px;">${match}</span>`;
+  });
+  
+  return html;
+}
+
+// Auto fact-check function - sends transcription to AI agent
+window.autoFactCheck = async function() {
+  if (!window.currentTranscription) {
+    console.warn('No transcription available for fact-checking');
+    return;
+  }
+
+  const responseContainer = document.getElementById('ai-response-container');
+  const responseText = document.getElementById('ai-response-text');
+  
+  if (!responseContainer || !responseText) {
+    console.error('Response container not found');
+    return;
+  }
+
+  // Show loading state
+  responseContainer.style.display = 'block';
+  responseText.innerHTML = `
+    <div style="text-align: center;">
+      <div style="display: inline-block; width: 30px; height: 30px; border: 3px solid #ff6b6b; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+      <div style="margin-top: 12px; color: #666; font-weight: 600;">🔍 Fact-checking with AI Agent...</div>
+    </div>
+  `;
+  recordingStatus.textContent = 'Fact-checking...';
+
+  try {
+    const apiKey = window.process && window.process.env && window.process.env.GOOGLE_API_KEY;
+    
+    if (!apiKey) {
+      throw new Error('Google API key not configured. Add GOOGLE_API_KEY to your .env file.');
+    }
+    
+    const geminiClient = new GeminiClient(apiKey);
+    
+    const factCheckPrompt = `You are a fact-checking AI agent. Analyze the following transcribed text and provide a detailed fact-check report.
+
+Transcribed Text:
+"${window.currentTranscription.text}"
+
+Please provide:
+1. **Claims Identified**: List all factual claims made in the text
+2. **Verification Status**: For each claim, indicate if it's TRUE, FALSE, PARTIALLY TRUE, or UNVERIFIABLE
+3. **Evidence**: Provide brief reasoning or context for each verification
+4. **Overall Assessment**: Give a summary of the factual accuracy
+5. **Confidence Level**: Rate your confidence in the fact-check (High/Medium/Low)
+
+Format your response in a clear, structured way.`;
+
+    const response = await geminiClient.generateContent(factCheckPrompt);
+    
+    console.log('✅ Fact-check complete:', response.text.substring(0, 100) + '...');
+    
+    // Store the response
+    window.currentAIResponse = {
+      task: 'fact-check',
+      input: {
+        text: window.currentTranscription.text,
+        timestamp: window.currentTranscription.timestamp
+      },
+      response: response.text,
+      timestamp: new Date().toISOString()
+    };
+    
+    // Display the fact-check results with formatted HTML
+    const formattedResponse = formatFactCheckResponse(response.text);
+    
+    responseText.innerHTML = `
+      <div style="background: white; padding: 24px; border-radius: 12px; border: 2px solid #ff6b6b; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 2px solid #ffe0e0;">
+          <span style="font-size: 32px;">🔍</span>
+          <strong style="color: #ff6b6b; font-size: 24px;">Fact Check Results</strong>
+        </div>
+        <div style="color: #333; line-height: 1.8;">${formattedResponse}</div>
+      </div>
+      <div style="margin-top: 16px; padding: 16px; background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); border-radius: 8px; border-left: 4px solid #4caf50;">
+        <strong style="color: #2e7d32; font-size: 16px;">💾 Response saved to JSON</strong>
+        <div style="margin-top: 12px;">
+          <button onclick="saveTranscriptionAsJSON()" style="padding: 10px 20px; background: #4caf50; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); transition: all 0.3s;">Download Full Report (JSON)</button>
+        </div>
+      </div>
+    `;
+    
+    recordingStatus.textContent = 'Fact-check complete!';
+    
+  } catch (error) {
+    console.error('❌ Fact-check error:', error);
+    
+    responseText.innerHTML = `
+      <div style="color: #ff4444; padding: 16px; background: #ffebee; border-radius: 8px;">
+        <strong>⚠️ Fact-Check Error:</strong><br><br>
+        ${error.message}<br><br>
+        <small style="color: #666;">
+          ${!window.process?.env?.GOOGLE_API_KEY ? 
+            'Make sure to add GOOGLE_API_KEY to your .env file.' : 
+            'Check your internet connection and API key validity.'}
+        </small>
+      </div>
+    `;
+    
+    recordingStatus.textContent = 'Fact-check failed';
   }
 };
 
