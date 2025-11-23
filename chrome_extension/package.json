@@ -1,0 +1,29 @@
+{
+  "name": "carmonic-verify",
+  "version": "1.0.0",
+  "description": "AI-powered fact-checking Chrome extension",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "lint": "eslint src --ext .js,.jsx",
+    "zip": "npm run build && cd dist && zip -r ../carmonic-verify.zip ."
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.268",
+    "@vitejs/plugin-react": "^4.2.1",
+    "eslint": "^8.57.0",
+    "eslint-plugin-react": "^7.34.1",
+    "vite": "^5.2.0",
+    "vite-plugin-web-extension": "^4.1.0",
+    "vitest": "^1.5.0"
+  }
+}
+

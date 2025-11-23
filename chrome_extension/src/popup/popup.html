@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Carmonic Verify</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <header class="popup-header">
+      <h1>🔍 Carmonic Verify</h1>
+      <p>AI-Powered Fact Checking</p>
+    </header>
+    
+    <div class="quick-check-section">
+      <h2>Quick Check</h2>
+      <textarea 
+        id="quick-check-input" 
+        placeholder="Paste text to fact-check..."
+        rows="4"
+      ></textarea>
+      <button id="quick-check-btn" class="primary-btn">
+        Fact Check
+      </button>
+    </div>
+    
+    <div class="history-section">
+      <div class="history-header">
+        <h2>Recent Checks</h2>
+        <button id="clear-history-btn" class="secondary-btn">Clear</button>
+      </div>
+      <div id="history-list" class="history-list">
+        <div class="empty-state">
+          No recent fact-checks yet. Highlight text on any webpage and press Ctrl+Shift+F (or Cmd+Shift+F) to get started!
+        </div>
+      </div>
+    </div>
+    
+    <footer class="popup-footer">
+      <button id="settings-btn" class="icon-btn" title="Settings">
+        ⚙️
+      </button>
+      <div class="shortcut-hint">
+        <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd>
+      </div>
+    </footer>
+  </div>
+  
+  <script src="popup.js" type="module"></script>
+</body>
+</html>
+

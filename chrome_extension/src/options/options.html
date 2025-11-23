@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Carmonic Verify - Settings</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="options-container">
+    <header class="options-header">
+      <h1>🔍 Carmonic Verify Settings</h1>
+      <p>Configure your AI fact-checking preferences</p>
+    </header>
+    
+    <main class="options-main">
+      <section class="settings-section">
+        <h2>🔑 API Keys</h2>
+        <p class="section-desc">Add at least one API key to enable fact-checking</p>
+        
+        <div class="input-group">
+          <label for="gemini-key">Google Gemini API Key</label>
+          <input 
+            type="password" 
+            id="gemini-key" 
+            placeholder="Enter Gemini API key"
+          >
+          <small>Get your key at: <a href="https://makersuite.google.com/app/apikey" target="_blank">makersuite.google.com</a></small>
+        </div>
+        
+        <div class="input-group">
+          <label for="openai-key">OpenAI API Key</label>
+          <input 
+            type="password" 
+            id="openai-key" 
+            placeholder="Enter OpenAI API key"
+          >
+          <small>Get your key at: <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com</a></small>
+        </div>
+      </section>
+      
+      <section class="settings-section">
+        <h2>🤖 Preferred AI Model</h2>
+        <div class="radio-group">
+          <label class="radio-label">
+            <input type="radio" name="model" value="gemini" id="model-gemini">
+            <div class="radio-content">
+              <strong>Google Gemini</strong>
+              <small>Fast, accurate, free tier available</small>
+            </div>
+          </label>
+          
+          <label class="radio-label">
+            <input type="radio" name="model" value="openai" id="model-openai">
+            <div class="radio-content">
+              <strong>OpenAI ChatGPT</strong>
+              <small>GPT-4o, requires billing</small>
+            </div>
+          </label>
+        </div>
+      </section>
+      
+      <section class="settings-section">
+        <h2>⌨️ Keyboard Shortcut</h2>
+        <p class="section-desc">Current shortcut: <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd> (or <kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd> on Mac)</p>
+        <button id="change-shortcut-btn" class="secondary-btn">
+          Change Shortcut
+        </button>
+      </section>
+      
+      <div class="save-section">
+        <button id="save-btn" class="primary-btn">
+          Save Settings
+        </button>
+        <div id="save-status" class="save-status"></div>
+      </div>
+    </main>
+    
+    <footer class="options-footer">
+      <p>Carmonic Verify v1.0.0 | <a href="https://github.com/your-repo" target="_blank">GitHub</a> | <a href="mailto:support@carmonic.com">Support</a></p>
+    </footer>
+  </div>
+  
+  <script src="options.js" type="module"></script>
+</body>
+</html>
+

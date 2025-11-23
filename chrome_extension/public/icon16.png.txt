@@ -1,0 +1,2 @@
+This is a placeholder. The extension will work without real icons.
+Chrome will use a default puzzle piece icon.
