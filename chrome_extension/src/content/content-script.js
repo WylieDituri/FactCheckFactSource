@@ -155,8 +155,24 @@ function showClaimSidebar() {
       <div class="factfinder-claim-text">${claimText}</div>
     `;
 
-    // Click to jump to timestamp
-    claimItem.addEventListener('click', () => jumpToTimestamp(claim.timestamp));
+    // Click to jump to timestamp AND show details
+    claimItem.addEventListener('click', (e) => {
+      e.stopPropagation(); // Prevent bubbling
+      jumpToTimestamp(claim.timestamp);
+
+      // Show detailed modal
+      showFactCheckModal({
+        text: claim.claim,
+        status: claim.status,
+        summary: claim.correction, // Use correction as summary
+        sources: claim.sources || [],
+        claims: [{
+          claim: claim.claim,
+          status: claim.status,
+          reasoning: claim.correction
+        }]
+      });
+    });
 
     claimsList.appendChild(claimItem);
   });
