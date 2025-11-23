@@ -175,26 +175,26 @@ export async function analyzeTranscript(transcript, apiKey) {
     .map(t => `[${t.start.toFixed(0)}s] ${t.text}`)
     .join('\n');
 
-  const prompt = `You are a real-time fact-checking assistant for a video. Analyze the following transcript and identify factual claims that are either TRUE, FALSE, or MISLEADING.
-
+  const prompt = `You are a fact-checking assistant. Identify key factual claims in this video transcript.
 Transcript:
-${formattedTranscript.substring(0, 30000)} ... (truncated if too long)
+${formattedTranscript.substring(0, 30000)} ...
 
-Return a JSON object with this structure:
+INSTRUCTIONS:
+1. Identify distinct factual claims.
+2. For each claim, provide a status (VERIFIED, DEBUNKED, MISLEADING, or UNVERIFIABLE) based on your general knowledge.
+3. Provide a brief correction or context if needed.
+
+Return a JSON object:
 {
   "claims": [
     {
       "timestamp": number (seconds),
-      "claim": "The claim made in the video",
-      "status": "VERIFIED" | "DEBUNKED" | "MISLEADING",
-      "correction": "The truth (if debunked)",
-      "confidence": number (0-1)
+      "claim": "The claim text",
+      "status": "VERIFIED" | "DEBUNKED" | "MISLEADING" | "UNVERIFIABLE",
+      "correction": "Brief context"
     }
   ]
 }
-
-Only include claims that are verifiable facts. Ignore opinions.
-"timestamp" should be the approximate start time in seconds where the claim is made.
 `;
 
   const requestBody = {
@@ -219,7 +219,11 @@ Only include claims that are verifiable facts. Ignore opinions.
     }
 
     const data = await response.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+    let text = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+
+    // Clean up markdown code blocks if present
+    text = text.replace(/```json\n?|```/g, '').trim();
+
     return JSON.parse(text);
   } catch (error) {
     console.error("Transcript Analysis Error:", error);

@@ -26,9 +26,15 @@ def read_root():
 def get_transcript(request: TranscriptRequest):
     try:
         # Fetch transcript (defaults to English)
-        # Based on docs: instantiate and call fetch
+        # Fetch transcript (defaults to English)
+        # Using instantiation as per provided docs
         ytt_api = YouTubeTranscriptApi()
-        transcript = ytt_api.fetch(request.video_id)
+        transcript_obj = ytt_api.fetch(request.video_id)
+        
+        # Convert to raw data (list of dicts)
+        # The docs say .to_raw_data() returns the list of dicts
+        transcript = transcript_obj.to_raw_data()
+        
         return {"transcript": transcript}
     except Exception as e:
         print(f"Error fetching transcript: {e}")

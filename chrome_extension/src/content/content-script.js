@@ -11,9 +11,11 @@ let activePopup = null;
 let lastCheckedTime = -1;
 
 // Listen for keyboard shortcut (Ctrl+Shift+F)
+// Listen for keyboard shortcut (Ctrl+Shift+F)
 document.addEventListener('keydown', (e) => {
   if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'f') {
     e.preventDefault();
+    console.log('⌨️ Manual shortcut triggered');
 
     const selection = window.getSelection();
     const text = selection.toString().trim();
@@ -109,39 +111,57 @@ function checkVideoTime() {
 }
 
 /**
- * Show Glassy Notification (New UI)
+ * Show Glassy Notification
  */
-function showGlassyNotification(claim) {
-  if (activePopup) activePopup.remove();
+function showGlassyNotification(claimData) {
+  // Remove existing
+  const existing = document.querySelector('.factfinder-glassy-card');
+  if (existing) existing.remove();
 
-  const popup = document.createElement('div');
-  popup.className = 'factfinder-glassy-card';
+  const card = document.createElement('div');
+  card.className = 'factfinder-glassy-card';
 
-  popup.innerHTML = `
+  // Status Badge
+  const statusClass = claimData.status.toLowerCase();
+
+  // Source HTML
+  let sourceHtml = '';
+  if (claimData.source && claimData.source.url) {
+    const sourceName = claimData.source.name || 'Verified Source';
+    sourceHtml = `
+      <div class="factfinder-glassy-source">
+        Source: <a href="${claimData.source.url}" target="_blank" rel="noopener noreferrer">${sourceName}</a>
+      </div>
+    `;
+  }
+
+  card.innerHTML = `
     <div class="factfinder-glassy-header">
-      <span class="factfinder-glassy-badge ${claim.status}">${claim.status}</span>
+      <span class="factfinder-glassy-badge ${statusClass}">${claimData.status}</span>
       <button class="factfinder-glassy-close">&times;</button>
     </div>
     <div class="factfinder-glassy-content">
-      <span class="factfinder-glassy-claim">"${escapeHtml(claim.claim)}"</span>
-      ${claim.correction ? `<div class="factfinder-glassy-correction">💡 ${escapeHtml(claim.correction)}</div>` : ''}
+      <div class="factfinder-glassy-claim">"${claimData.claim}"</div>
+      <div class="factfinder-glassy-correction">${claimData.correction || ''}</div>
+      ${sourceHtml}
     </div>
   `;
 
-  document.body.appendChild(popup);
-  activePopup = popup;
+  // Close button
+  card.querySelector('.factfinder-glassy-close').addEventListener('click', () => {
+    card.style.opacity = '0';
+    setTimeout(() => card.remove(), 300);
+  });
 
-  // Auto-remove after 8 seconds
-  const timeout = setTimeout(() => {
-    if (popup.parentNode) popup.remove();
-    if (activePopup === popup) activePopup = null;
-  }, 8000);
+  document.body.appendChild(card);
 
-  popup.querySelector('.factfinder-glassy-close').onclick = () => {
-    popup.remove();
-    activePopup = null;
-    clearTimeout(timeout);
-  };
+  // Auto-remove after 15 seconds
+  setTimeout(() => {
+    if (document.body.contains(card)) {
+      card.style.opacity = '0';
+      setTimeout(() => card.remove(), 300);
+    }
+  }, 15000);
 }
 
 
@@ -190,107 +210,91 @@ function showToast(message, type = 'info') {
     @keyframes fadeOut {
       from { opacity: 1; }
       to { opacity: 0; }
-    }
-    .factfinder-yt-btn {
-      background: #007bff;
-      color: white;
-      border: none;
-      padding: 8px 12px;
-      border-radius: 4px;
-      font-size: 14px;
-      cursor: pointer;
-      margin-left: 10px;
-      transition: background-color 0.2s, transform 0.2s;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    }
-    .factfinder-yt-btn:hover {
-      background: #0056b3;
-      transform: translateY(-1px);
-    }
-    .factfinder-yt-btn.analyzing {
-      background: #ffc107;
-      color: #333;
-      cursor: wait;
-    }
-    .factfinder-yt-btn.active {
-      background: #28a745;
-    }
-    .factfinder-glassy-card {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      width: 350px;
-      background: rgba(255, 255, 255, 0.8);
-      backdrop-filter: blur(10px);
-      border-radius: 16px;
-      box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
-      border: 1px solid rgba(255, 255, 255, 0.18);
-      z-index: 2147483647;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      animation: slideInUp 0.3s ease-out;
-      color: #333;
-      overflow: hidden;
-    }
-    .factfinder-glassy-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 12px 16px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.3);
-    }
-    .factfinder-glassy-badge {
-      font-size: 12px;
-      font-weight: 700;
-      padding: 4px 8px;
-      border-radius: 6px;
-      text-transform: uppercase;
-      color: white;
-    }
-    .factfinder-glassy-badge.TRUE { background: #28a745; }
-    .factfinder-glassy-badge.FALSE { background: #dc3545; }
-    .factfinder-glassy-badge.MIXED { background: #ffc107; color: #333; }
-    .factfinder-glassy-close {
-      background: none;
-      border: none;
-      font-size: 24px;
-      cursor: pointer;
-      color: #666;
-      line-height: 1;
-      padding: 0;
-      width: 24px;
-      height: 24px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 50%;
-      transition: background-color 0.2s;
-    }
-    .factfinder-glassy-close:hover {
-      background: rgba(0, 0, 0, 0.05);
-    }
-    .factfinder-glassy-content {
-      padding: 16px;
-    }
-    .factfinder-glassy-claim {
-      font-size: 15px;
-      font-weight: 600;
-      line-height: 1.4;
-      display: block;
-      margin-bottom: 10px;
-    }
-    .factfinder-glassy-correction {
-      font-size: 14px;
-      line-height: 1.5;
-      color: #555;
-      background: rgba(0, 123, 255, 0.1);
-      padding: 8px 12px;
-      border-radius: 8px;
-      border-left: 3px solid #007bff;
-    }
-    @keyframes slideInUp {
-      from { transform: translateY(100%); opacity: 0; }
+  }
+    .factfinder - yt - btn.analyzing {
+    background: #ffc107;
+    color: #333;
+    cursor: wait;
+  }
+    .factfinder - yt - btn.active {
+    background: #28a745;
+  }
+    .factfinder - glassy - card {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 350px;
+    background: rgba(255, 255, 255, 0.8);
+    backdrop - filter: blur(10px);
+    border - radius: 16px;
+    box - shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    z - index: 2147483647;
+    font - family: -apple - system, BlinkMacSystemFont, "Segoe UI", Roboto, sans - serif;
+    animation: slideInUp 0.3s ease - out;
+    color: #333;
+    overflow: hidden;
+  }
+    .factfinder - glassy - header {
+    display: flex;
+    justify - content: space - between;
+    align - items: center;
+    padding: 12px 16px;
+    border - bottom: 1px solid rgba(255, 255, 255, 0.3);
+  }
+    .factfinder - glassy - badge {
+    font - size: 12px;
+    font - weight: 700;
+    padding: 4px 8px;
+    border - radius: 6px;
+    text - transform: uppercase;
+    color: white;
+  }
+    .factfinder - glassy - badge.TRUE { background: #28a745; }
+    .factfinder - glassy - badge.FALSE { background: #dc3545; }
+    .factfinder - glassy - badge.MIXED { background: #ffc107; color: #333; }
+    .factfinder - glassy - close {
+    background: none;
+    border: none;
+    font - size: 24px;
+    cursor: pointer;
+    color: #666;
+    line - height: 1;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align - items: center;
+    justify - content: center;
+    border - radius: 50 %;
+    transition: background - color 0.2s;
+  }
+    .factfinder - glassy - close:hover {
+    background: rgba(0, 0, 0, 0.05);
+  }
+    .factfinder - glassy - content {
+    padding: 16px;
+  }
+    .factfinder - glassy - claim {
+    font - size: 15px;
+    font - weight: 600;
+    line - height: 1.4;
+    display: block;
+    margin - bottom: 10px;
+  }
+    .factfinder - glassy - correction {
+    font - size: 14px;
+    line - height: 1.5;
+    color: #555;
+    background: rgba(0, 123, 255, 0.1);
+    padding: 8px 12px;
+    border - radius: 8px;
+    border - left: 3px solid #007bff;
+  }
+  @keyframes slideInUp {
+      from { transform: translateY(100 %); opacity: 0; }
       to { transform: translateY(0); opacity: 1; }
-    }
+  }
   `;
 
   document.head.appendChild(style);
@@ -323,7 +327,7 @@ function showFactCheckModal(data) {
   const status = statusMap[data.status] || statusMap['UNKNOWN'];
 
   const modalContent = `
-    <div class="factfinder-modal-overlay">
+    < div class="factfinder-modal-overlay" >
       <div class="factfinder-modal-content">
         <div class="factfinder-modal-header">
           <div class="factfinder-status-badge" style="background-color: ${status.color}20; color: ${status.color}; border: 1px solid ${status.color}">
@@ -378,8 +382,8 @@ function showFactCheckModal(data) {
 
         </div>
       </div>
-    </div>
-  `;
+    </div >
+    `;
 
   modal.innerHTML = modalContent;
 
@@ -387,131 +391,152 @@ function showFactCheckModal(data) {
   const style = document.createElement('style');
   style.id = 'factfinder-modal-styles';
   style.textContent = `
-    #factfinder-modal { all: initial; }
-    .factfinder-modal-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0, 0, 0, 0.8);
-      z-index: 2147483646;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+  #factfinder - modal { all: initial; }
+    .factfinder - modal - overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    z - index: 2147483646;
+    display: flex;
+    align - items: center;
+    justify - content: center;
+    font - family: -apple - system, BlinkMacSystemFont, "Segoe UI", Roboto, sans - serif;
+    animation: fadeIn 0.3s ease;
+  }
+    .factfinder - modal - content {
+    background: white;
+    border - radius: 16px;
+    max - width: 800px;
+    width: 90 %;
+    max - height: 90vh;
+    overflow - y: auto;
+    box - shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    animation: slideUp 0.3s ease;
+  }
+    .factfinder - modal - header {
+    padding: 24px;
+    border - bottom: 1px solid #eee;
+    display: flex;
+    justify - content: space - between;
+    align - items: center;
+    position: sticky;
+    top: 0;
+    background: white;
+    border-radius: 16px 16px 0 0;
+    z-index: 10;
+  }
+    .factfinder-yt-btn {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 14px;
+      cursor: pointer;
+      margin-left: 10px;
+      transition: background-color 0.2s, transform 0.2s;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      animation: fadeIn 0.3s ease;
     }
-    .factfinder-modal-content {
-      background: white;
-      border-radius: 16px;
-      max-width: 800px;
-      width: 90%;
-      max-height: 90vh;
-      overflow-y: auto;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-      animation: slideUp 0.3s ease;
+    .factfinder-yt-btn:hover {
+      background: #0056b3;
+      transform: translateY(-1px);
     }
-    .factfinder-modal-header {
-      padding: 24px;
-      border-bottom: 1px solid #eee;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      position: sticky;
-      top: 0;
-      background: white;
-      border-radius: 16px 16px 0 0;
-      z-index: 10;
+    .factfinder-yt-btn.analyzing {
+      background: #ffc107;
+      color: #333;
+      cursor: wait;
     }
     .factfinder-status-badge {
-      display: flex;
-      align-items: center;
-      padding: 8px 16px;
-      border-radius: 50px;
-      font-weight: 700;
-      font-size: 16px;
-    }
+    display: flex;
+    align-items: center;
+    padding: 8px 16px;
+    border-radius: 50px;
+    font-weight: 700;
+    font-size: 16px;
+  }
     .factfinder-status-icon {
-      margin-right: 8px;
-    }
+    margin-right: 8px;
+  }
     .factfinder-close-btn {
-      background: none;
-      border: none;
-      font-size: 32px;
-      cursor: pointer;
-      color: #999;
-      padding: 0;
-      width: 40px;
-      height: 40px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 50%;
-      transition: all 0.2s;
-    }
+    background: none;
+    border: none;
+    font-size: 32px;
+    cursor: pointer;
+    color: #999;
+    padding: 0;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s;
+  }
     .factfinder-close-btn:hover {
-      background: #f5f5f5;
-      color: #333;
-    }
+    background: #f5f5f5;
+    color: #333;
+  }
     .factfinder-modal-body {
-      padding: 24px;
-    }
+    padding: 24px;
+  }
     .factfinder-selected-text {
-      margin-bottom: 24px;
-      padding: 16px;
-      background: #f8f9fa;
-      border-radius: 12px;
-      border-left: 4px solid #667eea;
-    }
+    margin-bottom: 24px;
+    padding: 16px;
+    background: #f8f9fa;
+    border-radius: 12px;
+    border-left: 4px solid #667eea;
+  }
     .factfinder-selected-text h3 {
-      color: #667eea;
-      margin-top: 0;
-      margin-bottom: 8px;
-      font-size: 14px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
+    color: #667eea;
+    margin-top: 0;
+    margin-bottom: 8px;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
     .factfinder-selected-text p {
-      margin: 0;
-      font-style: italic;
-      color: #555;
-      line-height: 1.6;
-    }
+    margin: 0;
+    font-style: italic;
+    color: #555;
+    line-height: 1.6;
+  }
     .factfinder-summary h3, .factfinder-sources h3, .factfinder-claims h3 {
-      font-size: 18px;
-      font-weight: 700;
-      color: #333;
-      margin-bottom: 16px;
-      margin-top: 0;
-    }
+    font-size: 18px;
+    font-weight: 700;
+    color: #333;
+    margin-bottom: 16px;
+    margin-top: 0;
+  }
     .factfinder-summary-text {
-      line-height: 1.8;
-      color: #333;
-      font-size: 16px;
-      margin-bottom: 32px;
-    }
+    line-height: 1.8;
+    color: #333;
+    font-size: 16px;
+    margin-bottom: 32px;
+  }
     .factfinder-sources {
-      margin-bottom: 32px;
-    }
+    margin-bottom: 32px;
+  }
     .factfinder-sources-list {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-      gap: 16px;
-    }
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+  }
     .factfinder-source-item {
-      display: flex;
-      align-items: center;
-      padding: 12px;
-      background: #fff;
-      border: 1px solid #eee;
-      border-radius: 12px;
-      text-decoration: none;
-      transition: all 0.2s;
-    }
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    background: #fff;
+    border: 1px solid #eee;
+    border-radius: 12px;
+    text-decoration: none;
+    transition: all 0.2s;
+  }
     .factfinder-source-item:hover {
       transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
       border-color: #667eea;
     }
     .factfinder-source-icon {
