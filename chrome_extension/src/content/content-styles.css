@@ -1,10 +1,10 @@
 /**
  * Content Script Styles - Injected into every webpage
- * Scoped with carmonic- prefix to avoid conflicts
+ * Scoped with factfinder- prefix to avoid conflicts
  */
 
 /* Toast Notifications */
-.carmonic-toast {
+.factfinder-toast {
   position: fixed;
   top: 20px;
   right: 20px;
@@ -16,37 +16,37 @@
   font-weight: 600;
   z-index: 2147483647;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-  animation: carmonic-slideInRight 0.3s ease, carmonic-fadeOut 0.3s ease 2.7s;
+  animation: factfinder-slideInRight 0.3s ease, factfinder-fadeOut 0.3s ease 2.7s;
 }
 
-.carmonic-toast-info {
+.factfinder-toast-info {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
-.carmonic-toast-error {
+.factfinder-toast-error {
   background: #ff6b6b;
 }
 
-.carmonic-toast-success {
+.factfinder-toast-success {
   background: #4caf50;
 }
 
-@keyframes carmonic-slideInRight {
+@keyframes factfinder-slideInRight {
   from { transform: translateX(400px); opacity: 0; }
   to { transform: translateX(0); opacity: 1; }
 }
 
-@keyframes carmonic-fadeOut {
+@keyframes factfinder-fadeOut {
   from { opacity: 1; }
   to { opacity: 0; }
 }
 
 /* Modal Overlay */
-#carmonic-modal {
+#factfinder-modal {
   all: initial;
 }
 
-.carmonic-modal-overlay {
+.factfinder-modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -58,10 +58,10 @@
   align-items: center;
   justify-content: center;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  animation: carmonic-fadeIn 0.3s ease;
+  animation: factfinder-fadeIn 0.3s ease;
 }
 
-.carmonic-modal-content {
+.factfinder-modal-content {
   background: white;
   border-radius: 16px;
   max-width: 800px;
@@ -69,21 +69,21 @@
   max-height: 90vh;
   overflow-y: auto;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-  animation: carmonic-slideUp 0.3s ease;
+  animation: factfinder-slideUp 0.3s ease;
 }
 
-@keyframes carmonic-fadeIn {
+@keyframes factfinder-fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
 }
 
-@keyframes carmonic-slideUp {
+@keyframes factfinder-slideUp {
   from { transform: translateY(50px); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
 }
 
 /* Modal Header */
-.carmonic-modal-header {
+.factfinder-modal-header {
   padding: 24px;
   border-bottom: 2px solid #f0f0f0;
   display: flex;
@@ -96,14 +96,14 @@
   z-index: 10;
 }
 
-.carmonic-modal-header h2 {
+.factfinder-modal-header h2 {
   margin: 0;
   color: #333;
   font-size: 24px;
   font-weight: 700;
 }
 
-.carmonic-close-btn {
+.factfinder-close-btn {
   background: none;
   border: none;
   font-size: 32px;
@@ -119,22 +119,22 @@
   transition: all 0.2s;
 }
 
-.carmonic-close-btn:hover {
+.factfinder-close-btn:hover {
   background: #f5f5f5;
   color: #333;
 }
 
 /* Modal Body */
-.carmonic-modal-body {
+.factfinder-modal-body {
   padding: 24px;
 }
 
 /* Selected Text */
-.carmonic-selected-text {
+.factfinder-selected-text {
   margin-bottom: 20px;
 }
 
-.carmonic-selected-text h3 {
+.factfinder-selected-text h3 {
   color: #667eea;
   margin-top: 0;
   margin-bottom: 12px;
@@ -142,7 +142,7 @@
   font-weight: 600;
 }
 
-.carmonic-selected-text p {
+.factfinder-selected-text p {
   padding: 16px;
   background: #f5f7ff;
   border-radius: 8px;
@@ -154,20 +154,20 @@
 }
 
 /* Score Display */
-.carmonic-score {
+.factfinder-score {
   margin-bottom: 24px;
   padding: 16px;
   background: #f8f9fa;
   border-radius: 8px;
 }
 
-.carmonic-score-label {
+.factfinder-score-label {
   font-weight: 600;
   margin-bottom: 8px;
   color: #333;
 }
 
-.carmonic-score-bar {
+.factfinder-score-bar {
   height: 12px;
   background: #e0e0e0;
   border-radius: 6px;
@@ -175,24 +175,24 @@
   margin-bottom: 8px;
 }
 
-.carmonic-score-fill {
+.factfinder-score-fill {
   height: 100%;
   background: linear-gradient(90deg, #ff6b6b 0%, #ffd93d 50%, #4caf50 100%);
   transition: width 0.5s ease;
 }
 
-.carmonic-score-value {
+.factfinder-score-value {
   text-align: right;
   font-weight: 700;
   color: #333;
 }
 
 /* Summary Section */
-.carmonic-summary {
+.factfinder-summary {
   margin-bottom: 20px;
 }
 
-.carmonic-summary h3 {
+.factfinder-summary h3 {
   color: #ff6b6b;
   margin-top: 0;
   margin-bottom: 12px;
@@ -200,7 +200,7 @@
   font-weight: 600;
 }
 
-.carmonic-summary-text {
+.factfinder-summary-text {
   background: white;
   padding: 16px;
   border-radius: 8px;
@@ -210,31 +210,31 @@
 }
 
 /* Evidence Section */
-.carmonic-evidence {
+.factfinder-evidence {
   margin-top: 20px;
 }
 
-.carmonic-evidence h3 {
+.factfinder-evidence h3 {
   color: #4caf50;
   margin-bottom: 12px;
   font-size: 16px;
   font-weight: 600;
 }
 
-.carmonic-evidence-item {
+.factfinder-evidence-item {
   background: #f5f5f5;
   padding: 12px;
   border-radius: 6px;
   margin-bottom: 8px;
 }
 
-.carmonic-evidence-item strong {
+.factfinder-evidence-item strong {
   display: block;
   color: #333;
   margin-bottom: 4px;
 }
 
-.carmonic-evidence-item a {
+.factfinder-evidence-item a {
   color: #667eea;
   font-size: 12px;
   display: block;
@@ -242,11 +242,11 @@
   text-decoration: none;
 }
 
-.carmonic-evidence-item a:hover {
+.factfinder-evidence-item a:hover {
   text-decoration: underline;
 }
 
-.carmonic-evidence-item p {
+.factfinder-evidence-item p {
   margin: 0;
   font-size: 13px;
   color: #666;

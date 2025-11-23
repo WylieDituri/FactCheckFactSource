@@ -1,6 +1,6 @@
 # Plain JavaScript Version
 
-This folder contains a simplified, plain JavaScript version of the Carmonic Verify extension without React or build tools.
+This folder contains a simplified, plain JavaScript version of the FactFinder extension without React or build tools.
 
 ## Structure
 

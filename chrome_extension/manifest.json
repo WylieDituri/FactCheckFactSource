@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Carmonic Verify",
+  "name": "FactFinder",
   "version": "1.0.0",
   "description": "AI-powered fact-checking for any webpage. Highlight text and verify facts instantly with Gemini AI and ChatGPT.",
   "permissions": [
@@ -27,7 +27,7 @@
   ],
   "action": {
     "default_popup": "src/popup/popup.html",
-    "default_title": "Carmonic Verify - Fact Check"
+    "default_title": "FactFinder - Fact Check"
   },
   "options_page": "src/options/options.html",
   "commands": {

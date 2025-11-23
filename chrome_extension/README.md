@@ -1,4 +1,4 @@
-# 🔍 Carmonic Verify - AI-Powered Fact-Checking Chrome Extension
+# 🔍 FactFinder - AI-Powered Fact-Checking Chrome Extension
 
 A powerful Chrome extension that brings AI-powered fact-checking to any webpage. Highlight text, press a hotkey, and get instant verification using Google Gemini or OpenAI ChatGPT.
 
@@ -44,7 +44,7 @@ npm install
    OR
    
    - Go to `chrome://extensions/`
-   - Find "Carmonic Verify" → Click "Details" → "Extension options"
+   - Find "FactFinder" → Click "Details" → "Extension options"
 
 3. **Enter your API key(s)**:
    - Paste your Gemini API key in the first field
@@ -80,7 +80,7 @@ The built extension will be in the `dist/` folder.
 npm run zip
 ```
 
-This creates `carmonic-verify.zip` ready for Chrome Web Store upload.
+This creates `factfinder.zip` ready for Chrome Web Store upload.
 
 ## 📖 How to Use
 
@@ -207,7 +207,7 @@ npm run zip
 
 2. Go to [Chrome Web Store Developer Dashboard](https://chrome.google.com/webstore/devconsole)
 
-3. Upload `carmonic-verify.zip`
+3. Upload `factfinder.zip`
 
 4. Fill in store listing details
 
@@ -228,8 +228,7 @@ MIT License - See LICENSE file
 ## 🆘 Support
 
 - **Issues**: Report bugs on GitHub
-- **Email**: support@carmonic.com
-- **Docs**: Full documentation at docs.carmonic.com
+- **GitHub**: Open an issue for support
 
 ## 🎯 Roadmap
 
@@ -249,5 +248,5 @@ MIT License - See LICENSE file
 
 ---
 
-Made with ❤️ by the Carmonic team
+Made with ❤️ by the FactFinder team
 

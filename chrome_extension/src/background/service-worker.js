@@ -6,7 +6,7 @@
 import { factCheckWithGemini, factCheckWithOpenAI } from '../utils/api-client.js';
 import { saveToHistory, getSettings } from '../utils/storage.js';
 
-console.log('🔧 Carmonic Verify Service Worker loaded');
+console.log('🔧 FactFinder Service Worker loaded');
 
 // Create context menu on installation
 chrome.runtime.onInstalled.addListener(() => {

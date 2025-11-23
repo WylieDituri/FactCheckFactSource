@@ -6,17 +6,20 @@
  * Fact check with Google Gemini
  */
 export async function factCheckWithGemini(text, apiKey) {
-  // Use EXACT same configuration as working browser gemini-client.js
-  const model = 'gemini-1.5-flash';  // Try this model instead
+  // Use EXACT same model as working browser
+  const model = 'gemini-2.5-pro';  // Available in API key (confirmed via LIST_MODELS.sh)
   const baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
   const url = `${baseUrl}/models/${model}:generateContent?key=${apiKey}`;
   
-  const factCheckPrompt = `You are a fact-checking AI agent. Analyze the following text and provide a detailed fact-check report.
+  const factCheckPrompt = `You are a fact-checking AI agent. First, determine if the text contains factual claims that need verification.
 
 Text:
 "${text}"
 
-Please provide:
+IMPORTANT: If the text is NOT a declarative statement with verifiable facts (e.g., it's a question, greeting, opinion without facts, navigation text, random text, etc.), respond with EXACTLY this format:
+"NOT_VERIFIABLE: [brief explanation why this text doesn't need fact-checking]"
+
+Otherwise, if it DOES contain factual claims, provide:
 1. **Claims Identified**: List all factual claims made in the text
 2. **Verification Status**: For each claim, indicate if it's TRUE, FALSE, PARTIALLY TRUE, or UNVERIFIABLE
 3. **Evidence**: Provide brief reasoning or context for each verification
@@ -70,11 +73,15 @@ Format your response in a clear, structured way.`;
   const data = await response.json();
   const responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
   
+  // Check if the text is not verifiable
+  const isNotVerifiable = responseText.trim().startsWith('NOT_VERIFIABLE:');
+  
   return {
     summary: responseText,
-    score: calculateConfidenceScore(responseText),
+    score: isNotVerifiable ? null : calculateConfidenceScore(responseText),
     evidence: [],
-    model: model
+    model: model,
+    isNotVerifiable: isNotVerifiable
   };
 }
 

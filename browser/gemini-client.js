@@ -9,7 +9,7 @@ class GeminiClient {
   constructor(apiKey) {
     this.apiKey = apiKey || '';
     this.baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
-    this.model = 'gemini-1.5-flash';  // Switch to this model
+    this.model = 'gemini-2.5-pro';  // Original model - revert to test
   }
 
   /**
