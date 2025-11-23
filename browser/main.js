@@ -1,8 +1,11 @@
-// Load environment variables from .env file
-require('dotenv').config();
+const path = require('path');
+
+// Load environment variables from the browser/.env file (if present).
+// Using an explicit path ensures the variables are loaded even if the
+// app is started from a different working directory.
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const { app, BrowserWindow, ipcMain, session } = require('electron');
-const path = require('path');
 
 let mainWindow;
 const tabs = new Map();
@@ -37,7 +40,7 @@ function createWindow() {
   // Enable context menu (right-click) for the main window
   mainWindow.webContents.on('context-menu', (event, params) => {
     // Allow context menu to work
-    event.preventDefault = () => {};
+    event.preventDefault = () => { };
   });
 
   // Open DevTools in development mode
