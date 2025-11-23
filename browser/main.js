@@ -6,6 +6,7 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const { app, BrowserWindow, ipcMain, session } = require('electron');
+const GeminiClient = require('./gemini-client');
 
 let mainWindow;
 const tabs = new Map();
@@ -85,5 +86,22 @@ ipcMain.on('fact-check-from-webview', (event, text) => {
   // Forward to renderer process
   if (mainWindow && mainWindow.webContents) {
     mainWindow.webContents.send('fact-check-text', text);
+  }
+});
+
+// Proxy handler: perform server-side Gemini call to avoid CORS and protect API key
+ipcMain.handle('proxy-fact-check', async (event, text) => {
+  try {
+    const apiKey = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY || process.env.GEMINI_KEY;
+    if (!apiKey) throw new Error('Server: Gemini API key not configured in environment');
+
+    const client = new GeminiClient(apiKey);
+    const prompt = `Please fact-check the following text and provide structured results:\n\n"${text}"`;
+    const response = await client.generateContent(prompt, { maxOutputTokens: 1024 });
+    return { success: true, response };
+  } catch (err) {
+    console.error('proxy-fact-check error:', err);
+    // Return structured error info (avoid leaking raw keys)
+    return { success: false, error: { message: err.message, fullResponse: err.fullResponse || null } };
   }
 });

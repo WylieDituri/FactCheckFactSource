@@ -27,6 +27,10 @@ class GeminiClient {
     const url = `${this.baseUrl}/models/${model}:generateContent?key=${this.apiKey}`;
 
     try {
+      // Debug: log request (avoid logging secrets in production)
+      console.debug('[GeminiClient] POST', url);
+      console.debug('[GeminiClient] prompt preview:', prompt.substring(0, 120));
+
       const response = await fetch(url, {
         method: 'POST',
         headers: {
@@ -66,15 +70,22 @@ class GeminiClient {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(`Gemini API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
+        // Try to read body to provide better diagnostics
+        const textBody = await response.text().catch(() => null);
+        let errorData = {};
+        try { errorData = JSON.parse(textBody); } catch (e) { /* not JSON */ }
+        const msg = errorData?.error?.message || errorData?.message || textBody || `HTTP ${response.status}`;
+        const err = new Error(`Gemini API error: ${response.status} - ${msg}`);
+        // attach full response body for downstream debugging
+        try { err.fullResponse = JSON.parse(textBody); } catch (e) { err.fullResponse = textBody; }
+        throw err;
       }
 
       const result = await response.json();
-      
+
       // Extract the text from the response
       const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      
+
       return {
         text: text,
         fullResponse: result,
@@ -84,6 +95,7 @@ class GeminiClient {
       };
     } catch (error) {
       console.error('Gemini API error:', error);
+      // Re-throw with any additional context
       throw error;
     }
   }
@@ -107,11 +119,11 @@ class GeminiClient {
       contents: [{
         parts: [
           { text: prompt },
-          { 
-            inline_data: { 
+          {
+            inline_data: {
               mime_type: 'image/jpeg',
-              data: base64Image 
-            } 
+              data: base64Image
+            }
           }
         ]
       }]
@@ -131,7 +143,7 @@ class GeminiClient {
 
     const data = await response.json();
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    
+
     return { text, fullResponse: data, model };
   }
 
@@ -152,9 +164,9 @@ class GeminiClient {
     };
 
     const prompt = prompts[task] || prompts.summarize;
-    
+
     const response = await this.generateContent(prompt);
-    
+
     return {
       task: task,
       input: transcription,

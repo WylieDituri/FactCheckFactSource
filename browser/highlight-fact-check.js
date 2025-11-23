@@ -9,14 +9,14 @@ let selectedText = '';
 function handleKeyboardShortcut(e) {
   // Check for Ctrl+Shift+F or Cmd+Shift+F
   const isFactCheckShortcut = (e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'f';
-  
+
   if (isFactCheckShortcut) {
     e.preventDefault();
     e.stopPropagation();
-    
+
     const selection = window.getSelection();
     const text = selection.toString().trim();
-    
+
     if (text.length > 0) {
       console.log('⌨️ Fact-check shortcut triggered in main window');
       selectedText = text;
@@ -25,7 +25,7 @@ function handleKeyboardShortcut(e) {
     } else {
       showFactCheckToast('⚠️ Please highlight some text first', true);
     }
-    
+
     return false;
   }
 }
@@ -49,7 +49,7 @@ function showFactCheckToast(message, isError = false) {
     animation: slideInRight 0.3s ease;
   `;
   toast.innerHTML = message;
-  
+
   const style = document.createElement('style');
   style.textContent = `
     @keyframes slideInRight {
@@ -71,9 +71,9 @@ function showFactCheckToast(message, isError = false) {
     style.setAttribute('data-toast-styles', 'true');
     document.head.appendChild(style);
   }
-  
+
   document.body.appendChild(toast);
-  
+
   setTimeout(() => {
     toast.style.animation = 'fadeOut 0.3s ease';
     setTimeout(() => toast.remove(), 300);
@@ -81,9 +81,9 @@ function showFactCheckToast(message, isError = false) {
 }
 
 // Fact check the highlighted text (globally accessible)
-window.factCheckHighlightedText = async function(text) {
+window.factCheckHighlightedText = async function (text) {
   console.log('🔍 Fact-checking highlighted text:', text.substring(0, 50) + '...');
-  
+
   // Create modal to show results
   const modal = document.createElement('div');
   modal.id = 'highlight-fact-check-modal';
@@ -100,7 +100,7 @@ window.factCheckHighlightedText = async function(text) {
     justify-content: center;
     animation: fadeIn 0.3s ease;
   `;
-  
+
   modal.innerHTML = `
     <div style="background: white; border-radius: 16px; max-width: 800px; width: 90%; max-height: 90vh; overflow-y: auto; margin: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); animation: slideUp 0.3s ease;">
       <div style="padding: 24px; border-bottom: 2px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; background: white; border-radius: 16px 16px 0 0; z-index: 10;">
@@ -142,65 +142,138 @@ window.factCheckHighlightedText = async function(text) {
       }
     </style>
   `;
-  
+
   document.body.appendChild(modal);
-  
+
   // Close button handler
   document.getElementById('close-highlight-modal').addEventListener('click', () => {
     modal.remove();
   });
-  
+
   // Click outside to close
   modal.addEventListener('click', (e) => {
     if (e.target === modal) {
       modal.remove();
     }
   });
-  
-  // Perform fact check using same method as voice recording
+
+  // Perform fact check using server-side proxy first (avoids CORS & keeps keys safe).
   try {
+    // If proxy is available, prefer it.
+    if (window.electronAPI && typeof window.electronAPI.proxyFactCheck === 'function') {
+      console.log('Using server proxy for fact-check');
+      const resultsDiv = document.getElementById('highlight-fact-check-results');
+      try {
+        const proxyResult = await window.electronAPI.proxyFactCheck(text);
+        console.log('proxyFactCheck returned:', proxyResult);
+        if (!proxyResult || !proxyResult.success) {
+          const errMsg = proxyResult?.error?.message || 'Unknown proxy error';
+          const extra = proxyResult?.error?.fullResponse ? `<pre style="white-space: pre-wrap; background: #f7f7f7; padding: 12px; border-radius: 6px;">${JSON.stringify(proxyResult.error.fullResponse, null, 2)}</pre>` : '';
+          if (resultsDiv) {
+            resultsDiv.innerHTML = `<div style="color: #ff4444; padding: 24px; background: #ffebee; border-radius: 8px; border-left: 4px solid #ff4444;">\n            <strong style="font-size: 18px;">⚠️ Proxy Fact-Check Error</strong><br><br>${errMsg}${extra}</div>`;
+          }
+          return;
+        }
+
+        const response = proxyResult.response;
+        const formattedResponse = formatFactCheckResponse(response.text || (response?.fullResponse && JSON.stringify(response.fullResponse).slice(0, 200)) || 'No text');
+        if (resultsDiv) {
+          resultsDiv.innerHTML = `<div style="background: white; padding: 24px; border-radius: 12px; border: 2px solid #ff6b6b; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">\n            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 2px solid #ffe0e0;">\n              <span style="font-size: 32px;">🔍</span><strong style="color: #ff6b6b; font-size: 24px;">Fact Check Results (via proxy)</strong>\n            </div><div style="color: #333; line-height: 1.8;">${formattedResponse}</div></div>`;
+        }
+        return;
+      } catch (proxyErr) {
+        console.error('Proxy invocation failed:', proxyErr);
+        const resultsDiv = document.getElementById('highlight-fact-check-results');
+        if (resultsDiv) {
+          resultsDiv.innerHTML = `<div style="color: #ff4444; padding: 24px; background: #ffebee; border-radius: 8px; border-left: 4px solid #ff4444;">\n            <strong style="font-size: 18px;">⚠️ Fact-Check Error</strong><br><br>${proxyErr.message}</div>`;
+        }
+        return;
+      }
+    }
+
     const geminiKey = window.process && window.process.env && window.process.env.GOOGLE_API_KEY;
     const openaiKey = window.process && window.process.env && window.process.env.OPENAI_API_KEY;
-    
+
     if (!geminiKey && !openaiKey) {
-      throw new Error('No AI API key configured. Add GOOGLE_API_KEY or OPENAI_API_KEY to your .env file.');
+      console.warn('No client-side AI key configured and no proxy available');
     }
-    
-    // Use Gemini first, fallback to OpenAI
-    const client = geminiKey ? new GeminiClient(geminiKey) : new OpenAIClient(openaiKey);
-    const modelName = geminiKey ? 'Gemini AI' : 'ChatGPT';
-    
-    const factCheckPrompt = `You are a fact-checking AI agent. First, determine if the text contains factual claims that need verification.
 
-Text:
-"${text}"
+    // Use Gemini first if available client-side
+    if (geminiKey || openaiKey) {
+      const client = geminiKey ? new GeminiClient(geminiKey) : new OpenAIClient(openaiKey);
+      const modelName = geminiKey ? 'Gemini AI' : 'ChatGPT';
 
-IMPORTANT: If the text is NOT a declarative statement with verifiable facts (e.g., it's a question, greeting, opinion without facts, navigation text, random text, etc.), respond with EXACTLY this format:
-"NOT_VERIFIABLE: [brief explanation why this text doesn't need fact-checking]"
+      const factCheckPrompt = `You are a fact-checking AI agent. First, determine if the text contains factual claims that need verification.\n\nText:\n"${text}"\n\nIMPORTANT: If the text is NOT a declarative statement with verifiable facts (e.g., it's a question, greeting, opinion without facts, navigation text, random text, etc.), respond with EXACTLY this format:\n"NOT_VERIFIABLE: [brief explanation why this text doesn't need fact-checking]"\n\nOtherwise, if it DOES contain factual claims, provide:\n1. **Claims Identified**: List all factual claims made in the text\n2. **Verification Status**: For each claim, indicate if it's TRUE, FALSE, PARTIALLY TRUE, or UNVERIFIABLE\n3. **Evidence**: Provide brief reasoning or context for each verification\n4. **Overall Assessment**: Give a summary of the factual accuracy\n5. **Confidence Level**: Rate your confidence in the fact-check (High/Medium/Low)\n\nFormat your response in a clear, structured way.`;
 
-Otherwise, if it DOES contain factual claims, provide:
-1. **Claims Identified**: List all factual claims made in the text
-2. **Verification Status**: For each claim, indicate if it's TRUE, FALSE, PARTIALLY TRUE, or UNVERIFIABLE
-3. **Evidence**: Provide brief reasoning or context for each verification
-4. **Overall Assessment**: Give a summary of the factual accuracy
-5. **Confidence Level**: Rate your confidence in the fact-check (High/Medium/Low)
+      try {
+        const response = await client.generateContent(factCheckPrompt);
+        console.log('✅ Fact-check complete');
 
-Format your response in a clear, structured way.`;
+        // continue to render response as before
+        // Check if the text is not verifiable
+        const isNotVerifiable = response.text.trim().startsWith('NOT_VERIFIABLE:');
+        const resultsDiv = document.getElementById('highlight-fact-check-results');
+        if (resultsDiv) {
+          if (isNotVerifiable) {
+            const explanation = response.text.replace('NOT_VERIFIABLE:', '').trim();
+            resultsDiv.innerHTML = `<div style="background: white; padding: 24px; border-radius: 12px; border: 2px solid #9e9e9e; box-shadow: 0 4px 6px rgba(0,0,0,0.1);"><div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 2px solid #f0f0f0;"><span style="font-size: 32px;">ℹ️</span><strong style="color: #757575; font-size: 24px;">No Fact-Checking Needed</strong></div><div style="color: #555; line-height: 1.8; font-size: 16px;"><p style="margin: 0; padding: 16px; background: #f5f5f5; border-radius: 8px; border-left: 4px solid #9e9e9e;">${explanation}</p></div></div>`;
+          } else {
+            const formattedResponse = formatFactCheckResponse(response.text);
+            resultsDiv.innerHTML = `<div style="background: white; padding: 24px; border-radius: 12px; border: 2px solid #ff6b6b; box-shadow: 0 4px 6px rgba(0,0,0,0.1);"><div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 2px solid #ffe0e0;"><span style="font-size: 32px;">🔍</span><strong style="color: #ff6b6b; font-size: 24px;">Fact Check Results</strong></div><div style="color: #333; line-height: 1.8;">${formattedResponse}</div></div><div style="margin-top: 16px; padding: 16px; background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); border-radius: 8px; border-left: 4px solid #4caf50;"><strong style="color: #2e7d32; font-size: 16px;">✅ Analysis complete using ${modelName}</strong></div>`;
+          }
+        }
 
-    const response = await client.generateContent(factCheckPrompt);
-    
-    console.log('✅ Fact-check complete');
-    
+        // stop here if successful
+        return;
+      } catch (err) {
+        console.error('Client-side fact-check attempt failed:', err);
+        // fall through to try server proxy
+      }
+    }
+
+    // If we reach here, try a server-side proxy via electron API
+    if (window.electronAPI && typeof window.electronAPI.proxyFactCheck === 'function') {
+      const resultsDiv = document.getElementById('highlight-fact-check-results');
+      try {
+        const proxyResult = await window.electronAPI.proxyFactCheck(text);
+        if (!proxyResult || !proxyResult.success) {
+          const errMsg = proxyResult?.error?.message || 'Unknown proxy error';
+          const extra = proxyResult?.error?.fullResponse ? `<pre style="white-space: pre-wrap; background: #f7f7f7; padding: 12px; border-radius: 6px;">${JSON.stringify(proxyResult.error.fullResponse, null, 2)}</pre>` : '';
+          if (resultsDiv) {
+            resultsDiv.innerHTML = `<div style="color: #ff4444; padding: 24px; background: #ffebee; border-radius: 8px; border-left: 4px solid #ff4444;"><strong style="font-size: 18px;">⚠️ Proxy Fact-Check Error</strong><br><br>${errMsg}${extra}</div>`;
+          }
+          return;
+        }
+
+        const response = proxyResult.response;
+        // render same as client response
+        const formattedResponse = formatFactCheckResponse(response.text || (response?.fullResponse && JSON.stringify(response.fullResponse).slice(0, 200)) || 'No text');
+        if (resultsDiv) {
+          resultsDiv.innerHTML = `<div style="background: white; padding: 24px; border-radius: 12px; border: 2px solid #ff6b6b; box-shadow: 0 4px 6px rgba(0,0,0,0.1);"><div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 2px solid #ffe0e0;"><span style="font-size: 32px;">🔍</span><strong style="color: #ff6b6b; font-size: 24px;">Fact Check Results (via proxy)</strong></div><div style="color: #333; line-height: 1.8;">${formattedResponse}</div></div>`;
+        }
+        return;
+      } catch (proxyErr) {
+        console.error('Proxy invocation failed:', proxyErr);
+        const resultsDiv = document.getElementById('highlight-fact-check-results');
+        if (resultsDiv) {
+          resultsDiv.innerHTML = `<div style="color: #ff4444; padding: 24px; background: #ffebee; border-radius: 8px; border-left: 4px solid #ff4444;"><strong style="font-size: 18px;">⚠️ Fact-Check Error</strong><br><br>${proxyErr.message}</div>`;
+        }
+        return;
+      }
+    }
+
+    throw new Error('No available method to perform fact-check. Ensure an API key is configured or enable the app proxy.');
+
     // Check if the text is not verifiable
     const isNotVerifiable = response.text.trim().startsWith('NOT_VERIFIABLE:');
-    
+
     // Display results
     const resultsDiv = document.getElementById('highlight-fact-check-results');
     if (resultsDiv) {
       if (isNotVerifiable) {
         // Extract the explanation after "NOT_VERIFIABLE:"
         const explanation = response.text.replace('NOT_VERIFIABLE:', '').trim();
-        
+
         resultsDiv.innerHTML = `
           <div style="background: white; padding: 24px; border-radius: 12px; border: 2px solid #9e9e9e; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
             <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 2px solid #f0f0f0;">
@@ -220,7 +293,7 @@ Format your response in a clear, structured way.`;
       } else {
         // Format response using same formatter as voice recording
         const formattedResponse = formatFactCheckResponse(response.text);
-        
+
         resultsDiv.innerHTML = `
           <div style="background: white; padding: 24px; border-radius: 12px; border: 2px solid #ff6b6b; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
             <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 2px solid #ffe0e0;">
@@ -235,15 +308,19 @@ Format your response in a clear, structured way.`;
         `;
       }
     }
-    
+
   } catch (error) {
     console.error('❌ Fact-check error:', error);
     const resultsDiv = document.getElementById('highlight-fact-check-results');
     if (resultsDiv) {
+      // Try to surface more debug info so the user can see API response details
+      const extra = error.fullResponse ? `<pre style="white-space: pre-wrap; background: #f7f7f7; padding: 12px; border-radius: 6px;">${JSON.stringify(error.fullResponse, null, 2)}</pre>` : (error.stack ? `<pre style="white-space: pre-wrap; background: #f7f7f7; padding: 12px; border-radius: 6px;">${error.stack}</pre>` : '');
+
       resultsDiv.innerHTML = `
         <div style="color: #ff4444; padding: 24px; background: #ffebee; border-radius: 8px; border-left: 4px solid #ff4444;">
           <strong style="font-size: 18px;">⚠️ Fact-Check Error</strong><br><br>
           ${error.message}
+          ${extra}
         </div>
       `;
     }
@@ -254,7 +331,7 @@ Format your response in a clear, structured way.`;
 function initHighlightFactCheck() {
   console.log('🔍 Keyboard shortcut fact-check feature initialized');
   console.log('⌨️  Press Ctrl+Shift+F (or Cmd+Shift+F) to fact-check highlighted text');
-  
+
   // Listen for keyboard shortcut
   document.addEventListener('keydown', handleKeyboardShortcut, true);
   window.addEventListener('keydown', handleKeyboardShortcut, true);
