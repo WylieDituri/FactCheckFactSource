@@ -28,7 +28,19 @@
   ],
   "action": {
     "default_popup": "src/popup/popup.html",
-    "default_title": "FactFinder - Fact Check"
+    "default_title": "FactFinder - Fact Check",
+    "default_icon": {
+      "16": "IMG_2285.PNG",
+      "32": "IMG_2285.PNG",
+      "48": "IMG_2285.PNG",
+      "128": "IMG_2285.PNG"
+    }
+  },
+  "icons": {
+    "16": "IMG_2285.PNG",
+    "32": "IMG_2285.PNG",
+    "48": "IMG_2285.PNG",
+    "128": "IMG_2285.PNG"
   },
   "options_page": "src/options/options.html",
   "commands": {
@@ -42,6 +54,12 @@
   },
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
-  }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["IMG_2285.PNG"],
+      "matches": ["<all_urls>"]
+    }
+  ]
 }
 

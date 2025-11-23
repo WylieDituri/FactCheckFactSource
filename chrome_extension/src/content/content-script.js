@@ -5,7 +5,6 @@
 
 console.log('🔍 FactFinder content script loaded');
 
-let currentSelection = '';
 let videoClaims = [];
 let activePopup = null;
 let lastCheckedTime = -1;
@@ -19,7 +18,6 @@ document.addEventListener('keydown', (e) => {
     const text = selection.toString().trim();
 
     if (text.length > 0) {
-      currentSelection = text;
       // Send to background for fact-checking
       chrome.runtime.sendMessage({
         action: 'factCheck',
@@ -322,31 +320,42 @@ function showFactCheckModal(data) {
 
   const status = statusMap[data.status] || statusMap['UNKNOWN'];
 
+  // Get the logo URL - use chrome.runtime.getURL to access extension files
+  const logoUrl = chrome.runtime.getURL('IMG_2285.PNG');
+  
   const modalContent = `
     <div class="factfinder-modal-overlay">
       <div class="factfinder-modal-content">
         <div class="factfinder-modal-header">
-          <div class="factfinder-status-badge" style="background-color: ${status.color}20; color: ${status.color}; border: 1px solid ${status.color}">
-            <span class="factfinder-status-icon">${status.icon}</span>
-            <span class="factfinder-status-label">${status.label}</span>
-          </div>
+          <h2 class="factfinder-modal-title">
+            <img src="${logoUrl}" alt="FactFinder" class="factfinder-logo" />
+            <span>Fact Check</span>
+          </h2>
           <button class="factfinder-close-btn">&times;</button>
         </div>
 
         <div class="factfinder-modal-body">
+          <div class="factfinder-status-badge" style="background-color: ${status.color}15; color: ${status.color}; border: 1px solid ${status.color}40">
+            <span class="factfinder-status-icon">${status.icon}</span>
+            <span class="factfinder-status-label">${status.label}</span>
+          </div>
+
           <div class="factfinder-selected-text">
-            <h3>Selected Text:</h3>
-            <p>"${escapeHtml(data.text.substring(0, 300))}${data.text.length > 300 ? '...' : ''}"</p>
+            <h3>Selected Text</h3>
+            <div class="factfinder-quote-box">
+              <span class="factfinder-quote-mark">"</span>
+              <p>${formatHighlightedText(data.text.substring(0, 300))}${data.text.length > 300 ? '<span class="factfinder-ellipsis">...</span>' : ''}</p>
+            </div>
           </div>
 
           <div class="factfinder-summary">
-            <h3>Analysis:</h3>
+            <h3>Analysis</h3>
             <div class="factfinder-summary-text">${formatFactCheckResponse(data.summary || 'No summary available')}</div>
           </div>
 
           ${data.sources && data.sources.length > 0 ? `
             <div class="factfinder-sources">
-              <h3>Verified Sources:</h3>
+              <h3>Verified Sources</h3>
               <div class="factfinder-sources-list">
                 ${data.sources.map(source => `
                   <a href="${escapeHtml(source.url)}" target="_blank" class="factfinder-source-item">
@@ -363,13 +372,13 @@ function showFactCheckModal(data) {
 
           ${data.claims && data.claims.length > 0 ? `
             <div class="factfinder-claims">
-              <h3>Claims Breakdown:</h3>
+              <h3>Claims Breakdown</h3>
               ${data.claims.map(claim => `
                 <div class="factfinder-claim-item">
                   <div class="factfinder-claim-header">
                     <span class="factfinder-claim-status ${claim.status}">${claim.status}</span>
-                    <span class="factfinder-claim-text">${escapeHtml(claim.claim)}</span>
                   </div>
+                  <p class="factfinder-claim-text">${escapeHtml(claim.claim)}</p>
                   <p class="factfinder-claim-reasoning">${escapeHtml(claim.reasoning)}</p>
                 </div>
               `).join('')}
@@ -388,191 +397,357 @@ function showFactCheckModal(data) {
   style.id = 'factfinder-modal-styles';
   style.textContent = `
     #factfinder-modal { all: initial; }
+    
+    /* Overlay without backdrop blur */
     .factfinder-modal-overlay {
       position: fixed;
       top: 0;
       left: 0;
       right: 0;
       bottom: 0;
-      background: rgba(0, 0, 0, 0.8);
+      background: rgba(0, 0, 0, 0.2);
       z-index: 2147483646;
       display: flex;
-      align-items: center;
-      justify-content: center;
+      align-items: stretch;
+      justify-content: flex-end;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       animation: fadeIn 0.3s ease;
     }
+    
+    /* Right-side column with liquid glass effect */
     .factfinder-modal-content {
-      background: white;
-      border-radius: 16px;
-      max-width: 800px;
-      width: 90%;
-      max-height: 90vh;
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      border-left: 1px solid rgba(255, 255, 255, 0.3);
+      width: 420px;
+      max-width: 90vw;
+      height: calc(100vh - 1in);
+      margin: 0.5in 0;
       overflow-y: auto;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-      animation: slideUp 0.3s ease;
+      box-shadow: none;
+      border-radius: 20px 0 0 20px;
+      animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     }
+    
+    /* Smooth scrollbar */
+    .factfinder-modal-content::-webkit-scrollbar {
+      width: 8px;
+    }
+    
+    .factfinder-modal-content::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.05);
+    }
+    
+    .factfinder-modal-content::-webkit-scrollbar-thumb {
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 4px;
+    }
+    
+    .factfinder-modal-content::-webkit-scrollbar-thumb:hover {
+      background: rgba(0, 0, 0, 0.3);
+    }
+    
+    /* Header with purple gradient */
     .factfinder-modal-header {
-      padding: 24px;
-      border-bottom: 1px solid #eee;
+      padding: 20px 20px;
+      border-bottom: none;
       display: flex;
       justify-content: space-between;
       align-items: center;
       position: sticky;
       top: 0;
-      background: white;
-      border-radius: 16px 16px 0 0;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 20px 0 0 0;
       z-index: 10;
     }
-    .factfinder-status-badge {
+    
+    .factfinder-modal-title {
       display: flex;
       align-items: center;
-      padding: 8px 16px;
-      border-radius: 50px;
+      gap: 12px;
+      margin: 0;
+      font-size: 18px;
       font-weight: 700;
-      font-size: 16px;
+      color: white;
+      letter-spacing: -0.5px;
     }
+    
+    .factfinder-logo {
+      width: 32px;
+      height: 32px;
+      object-fit: contain;
+    }
+    
+    /* Status badge */
+    .factfinder-status-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 10px 16px;
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 14px;
+      margin-bottom: 20px;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+    
     .factfinder-status-icon {
       margin-right: 8px;
+      font-size: 16px;
     }
+    
+    /* Close button */
     .factfinder-close-btn {
-      background: none;
+      background: rgba(255, 255, 255, 0.2);
       border: none;
-      font-size: 32px;
+      font-size: 24px;
       cursor: pointer;
-      color: #999;
+      color: white;
       padding: 0;
-      width: 40px;
-      height: 40px;
+      width: 32px;
+      height: 32px;
       display: flex;
       align-items: center;
       justify-content: center;
       border-radius: 50%;
       transition: all 0.2s;
     }
+    
     .factfinder-close-btn:hover {
-      background: #f5f5f5;
-      color: #333;
+      background: rgba(255, 255, 255, 0.3);
+      color: white;
+      transform: scale(1.1);
     }
+    
+    /* Modal body */
     .factfinder-modal-body {
-      padding: 24px;
+      padding: 24px 20px;
     }
+    
+    /* Selected text with quote styling */
     .factfinder-selected-text {
-      margin-bottom: 24px;
-      padding: 16px;
-      background: #f8f9fa;
-      border-radius: 12px;
-      border-left: 4px solid #667eea;
+      margin-bottom: 28px;
     }
+    
     .factfinder-selected-text h3 {
       color: #667eea;
       margin-top: 0;
-      margin-bottom: 8px;
-      font-size: 14px;
+      margin-bottom: 12px;
+      font-size: 13px;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 1px;
+      font-weight: 700;
     }
-    .factfinder-selected-text p {
+    
+    .factfinder-quote-box {
+      position: relative;
+      padding: 18px 20px;
+      background: rgba(102, 126, 234, 0.08);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-radius: 12px;
+      border-left: 3px solid #667eea;
+    }
+    
+    .factfinder-quote-mark {
+      position: absolute;
+      top: 12px;
+      left: 16px;
+      font-size: 40px;
+      color: rgba(102, 126, 234, 0.3);
+      font-family: Georgia, serif;
+      line-height: 0;
+    }
+    
+    .factfinder-quote-box p {
       margin: 0;
+      padding-left: 28px;
+      font-size: 15px;
+      line-height: 1.7;
+      color: #333;
+    }
+    
+    .factfinder-quote-box strong {
+      font-weight: 700;
+      color: #1a1a1a;
+    }
+    
+    .factfinder-quote-box em {
       font-style: italic;
       color: #555;
-      line-height: 1.6;
     }
-    .factfinder-summary h3, .factfinder-sources h3, .factfinder-claims h3 {
-      font-size: 18px;
+    
+    .factfinder-quote-box u {
+      text-decoration: underline;
+      text-decoration-color: #667eea;
+      text-decoration-thickness: 2px;
+    }
+    
+    .factfinder-ellipsis {
+      color: #999;
+      margin-left: 2px;
+    }
+    
+    /* Section headings */
+    .factfinder-summary h3, 
+    .factfinder-sources h3, 
+    .factfinder-claims h3 {
+      font-size: 13px;
       font-weight: 700;
       color: #333;
-      margin-bottom: 16px;
+      margin-bottom: 14px;
       margin-top: 0;
+      text-transform: uppercase;
+      letter-spacing: 1px;
     }
+    
+    /* Summary section */
+    .factfinder-summary {
+      margin-bottom: 28px;
+    }
+    
     .factfinder-summary-text {
-      line-height: 1.8;
+      line-height: 1.7;
       color: #333;
-      font-size: 16px;
-      margin-bottom: 32px;
+      font-size: 15px;
+      padding: 16px;
+      background: rgba(255, 255, 255, 0.5);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-radius: 10px;
+      border: 1px solid rgba(0, 0, 0, 0.08);
     }
+    
+    /* Sources section */
     .factfinder-sources {
-      margin-bottom: 32px;
+      margin-bottom: 28px;
     }
+    
     .factfinder-sources-list {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-      gap: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
     }
+    
     .factfinder-source-item {
       display: flex;
       align-items: center;
-      padding: 12px;
-      background: #fff;
-      border: 1px solid #eee;
-      border-radius: 12px;
+      padding: 12px 14px;
+      background: rgba(255, 255, 255, 0.5);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 10px;
       text-decoration: none;
       transition: all 0.2s;
     }
+    
     .factfinder-source-item:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      background: rgba(255, 255, 255, 0.7);
       border-color: #667eea;
+      transform: translateX(-3px);
     }
+    
     .factfinder-source-icon {
-      width: 24px;
-      height: 24px;
+      width: 20px;
+      height: 20px;
       margin-right: 12px;
       border-radius: 4px;
     }
+    
     .factfinder-source-info {
       display: flex;
       flex-direction: column;
     }
+    
     .factfinder-source-name {
       font-weight: 600;
       color: #333;
-      font-size: 14px;
+      font-size: 13px;
+      line-height: 1.3;
     }
+    
     .factfinder-source-domain {
-      font-size: 12px;
+      font-size: 11px;
       color: #888;
+      margin-top: 2px;
     }
+    
+    /* Claims section */
     .factfinder-claims {
       margin-top: 24px;
     }
+    
     .factfinder-claim-item {
-      background: #f8f9fa;
-      padding: 16px;
-      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.5);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      padding: 14px 16px;
+      border-radius: 10px;
       margin-bottom: 12px;
+      border: 1px solid rgba(0, 0, 0, 0.08);
     }
+    
     .factfinder-claim-header {
-      display: flex;
-      align-items: center;
-      margin-bottom: 8px;
+      margin-bottom: 10px;
     }
+    
     .factfinder-claim-status {
-      font-size: 12px;
+      display: inline-block;
+      font-size: 11px;
       font-weight: 700;
-      padding: 4px 8px;
-      border-radius: 4px;
-      margin-right: 12px;
+      padding: 4px 10px;
+      border-radius: 8px;
       text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
-    .factfinder-claim-status.TRUE { background: #e8f5e9; color: #2e7d32; }
-    .factfinder-claim-status.FALSE { background: #ffebee; color: #c62828; }
-    .factfinder-claim-status.MIXED { background: #fff3e0; color: #ef6c00; }
+    
+    .factfinder-claim-status.TRUE { 
+      background: rgba(76, 175, 80, 0.15); 
+      color: #2e7d32; 
+    }
+    
+    .factfinder-claim-status.FALSE { 
+      background: rgba(244, 67, 54, 0.15); 
+      color: #c62828; 
+    }
+    
+    .factfinder-claim-status.MIXED { 
+      background: rgba(255, 152, 0, 0.15); 
+      color: #ef6c00; 
+    }
 
     .factfinder-claim-text {
       font-weight: 600;
       color: #333;
+      font-size: 14px;
+      line-height: 1.5;
+      margin: 8px 0;
     }
+    
     .factfinder-claim-reasoning {
       margin: 0;
-      font-size: 14px;
+      font-size: 13px;
       color: #666;
       line-height: 1.6;
     }
 
-    @keyframes slideUp {
-      from { transform: translateY(50px); opacity: 0; }
-      to { transform: translateY(0); opacity: 1; }
+    /* Animations */
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    
+    @keyframes slideInRight {
+      from { 
+        transform: translateX(100%); 
+        opacity: 0; 
+      }
+      to { 
+        transform: translateX(0); 
+        opacity: 1; 
+      }
     }
   `;
 
@@ -593,6 +768,24 @@ function showFactCheckModal(data) {
       modal.remove();
     }
   });
+}
+
+/**
+ * Format highlighted text with bold, italic, and emphasis
+ */
+function formatHighlightedText(text) {
+  let html = escapeHtml(text);
+  
+  // Convert **bold** to strong
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  
+  // Convert *italic* to em
+  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  
+  // Convert _underline_ to u
+  html = html.replace(/_(.+?)_/g, '<u>$1</u>');
+  
+  return html;
 }
 
 /**
@@ -621,11 +814,11 @@ function formatFactCheckResponse(text) {
  */
 function escapeHtml(unsafe) {
   return unsafe
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }
 
 console.log('✅ Content script ready - Press Ctrl+Shift+F to fact-check highlighted text');
