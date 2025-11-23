@@ -59,6 +59,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       btn.classList.remove('analyzing');
       btn.classList.add('active');
     }
+
+    // Show claim navigation sidebar
+    showClaimSidebar();
   }
 });
 
@@ -108,7 +111,270 @@ function checkVideoTime() {
     lastCheckedTime = Math.floor(currentTime);
     showGlassyNotification(claim);
   }
+
+  // Update sidebar highlighting
+  updateSidebarHighlight(currentTime);
 }
+
+/**
+ * Show Claim Navigation Sidebar
+ */
+function showClaimSidebar() {
+  // Remove existing sidebar
+  const existing = document.querySelector('.factfinder-claim-sidebar');
+  if (existing) existing.remove();
+
+  if (videoClaims.length === 0) return;
+
+  const sidebar = document.createElement('div');
+  sidebar.className = 'factfinder-claim-sidebar';
+
+  const header = document.createElement('div');
+  header.className = 'factfinder-sidebar-header';
+  header.innerHTML = `
+    <span>🔍 Fact Check Claims (${videoClaims.length})</span>
+    <button class="factfinder-sidebar-close">×</button>
+  `;
+
+  const claimsList = document.createElement('div');
+  claimsList.className = 'factfinder-claims-list';
+
+  videoClaims.forEach((claim, index) => {
+    const claimItem = document.createElement('div');
+    claimItem.className = 'factfinder-claim-item';
+    claimItem.dataset.timestamp = claim.timestamp;
+    claimItem.dataset.index = index;
+
+    const statusClass = claim.status.toLowerCase();
+    const timeStr = formatTimestamp(claim.timestamp);
+    const claimText = claim.claim.length > 80 ? claim.claim.substring(0, 80) + '...' : claim.claim;
+
+    claimItem.innerHTML = `
+      <div class="factfinder-claim-time">${timeStr}</div>
+      <div class="factfinder-claim-status-badge ${statusClass}">${claim.status}</div>
+      <div class="factfinder-claim-text">${claimText}</div>
+    `;
+
+    // Click to jump to timestamp
+    claimItem.addEventListener('click', () => jumpToTimestamp(claim.timestamp));
+
+    claimsList.appendChild(claimItem);
+  });
+
+  sidebar.appendChild(header);
+  sidebar.appendChild(claimsList);
+
+  // Close button handler
+  const closeBtn = header.querySelector('.factfinder-sidebar-close');
+  closeBtn.addEventListener('click', () => sidebar.remove());
+
+  // Add styles
+  addSidebarStyles();
+
+  document.body.appendChild(sidebar);
+}
+
+/**
+ * Update sidebar highlighting based on current video time
+ */
+function updateSidebarHighlight(currentTime) {
+  const sidebar = document.querySelector('.factfinder-claim-sidebar');
+  if (!sidebar) return;
+
+  const items = sidebar.querySelectorAll('.factfinder-claim-item');
+  let foundCurrent = false;
+
+  items.forEach((item, index) => {
+    const timestamp = parseFloat(item.dataset.timestamp);
+    item.classList.remove('active', 'upcoming');
+
+    // Current claim (within 5 second window)
+    if (currentTime >= timestamp && currentTime < timestamp + 5) {
+      item.classList.add('active');
+      foundCurrent = true;
+      // Scroll into view
+      item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    // Next upcoming claim
+    else if (!foundCurrent && currentTime < timestamp && index === 0) {
+      item.classList.add('upcoming');
+    } else if (!foundCurrent && currentTime < timestamp) {
+      const prevTimestamp = index > 0 ? parseFloat(items[index - 1].dataset.timestamp) : 0;
+      if (currentTime >= prevTimestamp) {
+        item.classList.add('upcoming');
+      }
+    }
+  });
+}
+
+/**
+ * Jump to timestamp in video
+ */
+function jumpToTimestamp(timestamp) {
+  const video = document.querySelector('video');
+  if (!video) return;
+
+  video.currentTime = timestamp;
+  // Optionally play the video if paused
+  if (video.paused) {
+    video.play();
+  }
+}
+
+/**
+ * Format seconds to MM:SS
+ */
+function formatTimestamp(seconds) {
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+/**
+ * Add sidebar styles
+ */
+function addSidebarStyles() {
+  if (document.getElementById('factfinder-sidebar-styles')) return;
+
+  const style = document.createElement('style');
+  style.id = 'factfinder-sidebar-styles';
+  style.textContent = `
+    .factfinder-claim-sidebar {
+      position: fixed;
+      top: 80px;
+      right: 20px;
+      width: 350px;
+      max-height: calc(100vh - 100px);
+      background: rgba(0, 0, 0, 0.9);
+      backdrop-filter: blur(20px);
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+      z-index: 2147483646;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .factfinder-sidebar-header {
+      padding: 16px;
+      background: rgba(255, 255, 255, 0.05);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: white;
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .factfinder-sidebar-close {
+      background: none;
+      border: none;
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 24px;
+      cursor: pointer;
+      padding: 0;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      transition: all 0.2s;
+    }
+
+    .factfinder-sidebar-close:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+    }
+
+    .factfinder-claims-list {
+      overflow-y: auto;
+      padding: 8px;
+    }
+
+    .factfinder-claim-item {
+      padding: 12px;
+      margin-bottom: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: 2px solid transparent;
+    }
+
+    .factfinder-claim-item:hover {
+      background: rgba(255, 255, 255, 0.1);
+      transform: translateX(-4px);
+    }
+
+    .factfinder-claim-item.active {
+      background: rgba(59, 130, 246, 0.2);
+      border-color: rgba(59, 130, 246, 0.5);
+      box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+    }
+
+    .factfinder-claim-item.upcoming {
+      border-left: 3px solid rgba(251, 191, 36, 0.6);
+    }
+
+    .factfinder-claim-time {
+      font-size: 12px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.6);
+      margin-bottom: 6px;
+    }
+
+    .factfinder-claim-item.active .factfinder-claim-time {
+      color: rgba(59, 130, 246, 1);
+    }
+
+    .factfinder-claim-status-badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .factfinder-claim-status-badge.verified {
+      background: rgba(34, 197, 94, 0.2);
+      color: #4ade80;
+    }
+
+    .factfinder-claim-status-badge.debunked {
+      background: rgba(239, 68, 68, 0.2);
+      color: #f87171;
+    }
+
+    .factfinder-claim-status-badge.misleading {
+      background: rgba(251, 191, 36, 0.2);
+      color: #fbbf24;
+    }
+
+    .factfinder-claim-status-badge.unverifiable {
+      background: rgba(156, 163, 175, 0.2);
+      color: #9ca3af;
+    }
+
+    .factfinder-claim-text {
+      font-size: 13px;
+      line-height: 1.4;
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    .factfinder-claim-item.active .factfinder-claim-text {
+      color: white;
+      font-weight: 500;
+    }
+  `;
+
+  document.head.appendChild(style);
+}
+
 
 /**
  * Show Glassy Notification
