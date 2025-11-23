@@ -159,4 +159,72 @@ Ensure the "sources" array contains real, reputable sources.`;
   }
 }
 
+/**
+ * Analyze YouTube Transcript
+ */
+export async function analyzeTranscript(transcript, apiKey) {
+  // Use Gemini Flash for long context window and speed
+  const model = 'gemini-2.0-flash';
+  const baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
+  const url = `${baseUrl}/models/${model}:generateContent?key=${apiKey}`;
+
+  // Format transcript for the prompt
+  // We group text into chunks with timestamps to help the AI identify when things were said
+  const formattedTranscript = transcript
+    .filter((_, i) => i % 5 === 0) // Sample every 5th line to reduce token count if needed, or pass all if short
+    .map(t => `[${t.start.toFixed(0)}s] ${t.text}`)
+    .join('\n');
+
+  const prompt = `You are a real-time fact-checking assistant for a video. Analyze the following transcript and identify factual claims that are either TRUE, FALSE, or MISLEADING.
+
+Transcript:
+${formattedTranscript.substring(0, 30000)} ... (truncated if too long)
+
+Return a JSON object with this structure:
+{
+  "claims": [
+    {
+      "timestamp": number (seconds),
+      "claim": "The claim made in the video",
+      "status": "VERIFIED" | "DEBUNKED" | "MISLEADING",
+      "correction": "The truth (if debunked)",
+      "confidence": number (0-1)
+    }
+  ]
+}
+
+Only include claims that are verifiable facts. Ignore opinions.
+"timestamp" should be the approximate start time in seconds where the claim is made.
+`;
+
+  const requestBody = {
+    contents: [{
+      parts: [{ text: prompt }]
+    }],
+    generationConfig: {
+      temperature: 0.2,
+      responseMimeType: "application/json"
+    }
+  };
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody)
+    });
+
+    if (!response.ok) {
+      throw new Error(`Gemini API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+    return JSON.parse(text);
+  } catch (error) {
+    console.error("Transcript Analysis Error:", error);
+    throw error;
+  }
+}
+
 

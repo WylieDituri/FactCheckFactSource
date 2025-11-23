@@ -3,8 +3,9 @@
  * Handles API calls, context menu, keyboard shortcuts, and message routing
  */
 
-import { factCheckWithGemini, factCheckWithOpenAI } from '../utils/api-client.js';
+import { factCheckWithGemini, factCheckWithOpenAI, analyzeTranscript } from '../utils/api-client.js';
 import { saveToHistory, getSettings } from '../utils/storage.js';
+import { fetchTranscript, extractVideoId } from '../utils/youtube.js';
 
 console.log('🔧 FactFinder Service Worker loaded');
 
@@ -15,7 +16,7 @@ chrome.runtime.onInstalled.addListener(() => {
     title: '🔍 Fact Check Selection',
     contexts: ['selection']
   });
-  
+
   console.log('✅ Context menu created');
 });
 
@@ -31,13 +32,13 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 chrome.commands.onCommand.addListener(async (command) => {
   if (command === 'fact-check') {
     console.log('⌨️ Fact-check keyboard shortcut triggered');
-    
+
     // Get active tab
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    
+
     // Request selected text from content script
-    chrome.tabs.sendMessage(tab.id, { 
-      action: 'getSelection' 
+    chrome.tabs.sendMessage(tab.id, {
+      action: 'getSelection'
     }, async (response) => {
       if (response && response.text) {
         await performFactCheck(response.text, tab.id);
@@ -56,7 +57,7 @@ chrome.commands.onCommand.addListener(async (command) => {
 // Handle messages from content script and popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log('📨 Message received:', request.action);
-  
+
   if (request.action === 'factCheck') {
     // Perform fact check
     performFactCheck(request.text, sender.tab?.id)
@@ -64,7 +65,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       .catch(error => sendResponse({ success: false, error: error.message }));
     return true; // Keep channel open for async response
   }
-  
+
+  if (request.action === 'analyzeVideo') {
+    // Analyze YouTube video
+    performVideoAnalysis(request.url, sender.tab?.id)
+      .then(result => sendResponse({ success: true, result }))
+      .catch(error => sendResponse({ success: false, error: error.message }));
+    return true;
+  }
+
   if (request.action === 'getHistory') {
     // Get fact-check history
     chrome.storage.local.get(['history'], (data) => {
@@ -72,7 +81,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     });
     return true;
   }
-  
+
   if (request.action === 'clearHistory') {
     // Clear history
     chrome.storage.local.set({ history: [] }, () => {
@@ -83,19 +92,69 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 /**
+ * Perform video analysis
+ */
+async function performVideoAnalysis(url, tabId) {
+  try {
+    console.log('🎥 Starting video analysis:', url);
+
+    const videoId = extractVideoId(url);
+    if (!videoId) throw new Error('Invalid YouTube URL');
+
+    // Get settings
+    const settings = await getSettings();
+    const apiKey = settings.geminiApiKey || settings.openaiApiKey;
+
+    if (!apiKey) {
+      throw new Error('No API key configured. Please add an API key in the extension options.');
+    }
+
+    // 1. Fetch Transcript
+    const transcript = await fetchTranscript(videoId);
+    console.log(`📝 Transcript fetched: ${transcript.length} lines`);
+
+    // 2. Analyze with AI
+    const analysis = await analyzeTranscript(transcript, apiKey);
+    console.log('✅ Analysis complete:', analysis);
+
+    // 3. Send back to content script
+    if (tabId) {
+      chrome.tabs.sendMessage(tabId, {
+        action: 'videoClaimsAnalyzed',
+        claims: analysis.claims
+      });
+    }
+
+    return analysis;
+
+  } catch (error) {
+    console.error('❌ Video analysis error:', error);
+
+    if (tabId) {
+      chrome.tabs.sendMessage(tabId, {
+        action: 'showToast',
+        message: `⚠️ Error: ${error.message}`,
+        type: 'error'
+      });
+    }
+    throw error;
+  }
+}
+
+/**
  * Perform fact check using configured AI model
  */
 async function performFactCheck(text, tabId) {
   try {
     console.log('🤖 Starting fact check...');
-    
+
     // Get settings
     const settings = await getSettings();
-    
+
     if (!settings.geminiApiKey && !settings.openaiApiKey) {
       throw new Error('No API key configured. Please add an API key in the extension options.');
     }
-    
+
     // Show loading toast
     if (tabId) {
       chrome.tabs.sendMessage(tabId, {
@@ -104,7 +163,7 @@ async function performFactCheck(text, tabId) {
         type: 'info'
       });
     }
-    
+
     // Choose AI model
     let result;
     if (settings.preferredModel === 'openai' && settings.openaiApiKey) {
@@ -116,7 +175,7 @@ async function performFactCheck(text, tabId) {
     } else {
       throw new Error('No valid API key found');
     }
-    
+
     // Save to history
     await saveToHistory({
       text: text.substring(0, 200),
@@ -124,7 +183,7 @@ async function performFactCheck(text, tabId) {
       score: result.score,
       timestamp: Date.now()
     });
-    
+
     // Send result to content script
     if (tabId) {
       chrome.tabs.sendMessage(tabId, {
@@ -135,13 +194,13 @@ async function performFactCheck(text, tabId) {
         }
       });
     }
-    
+
     console.log('✅ Fact check complete');
     return result;
-    
+
   } catch (error) {
     console.error('❌ Fact check error:', error);
-    
+
     // Show error toast
     if (tabId) {
       chrome.tabs.sendMessage(tabId, {
@@ -150,7 +209,7 @@ async function performFactCheck(text, tabId) {
         type: 'error'
       });
     }
-    
+
     throw error;
   }
 }

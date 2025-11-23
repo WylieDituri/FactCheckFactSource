@@ -6,6 +6,9 @@
 console.log('🔍 FactFinder content script loaded');
 
 let currentSelection = '';
+let videoClaims = [];
+let activePopup = null;
+let lastCheckedTime = -1;
 
 // Listen for keyboard shortcut (Ctrl+Shift+F)
 document.addEventListener('keydown', (e) => {
@@ -42,7 +45,105 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'showFactCheckResult') {
     showFactCheckModal(request.data);
   }
+
+  if (request.action === 'videoClaimsAnalyzed') {
+    videoClaims = request.claims;
+    showToast(`✅ Video analyzed! Found ${videoClaims.length} claims.`, 'success');
+
+    // Update button state
+    const btn = document.querySelector('.factfinder-yt-btn');
+    if (btn) {
+      btn.textContent = '✅ Fact Checked';
+      btn.classList.remove('analyzing');
+      btn.classList.add('active');
+    }
+  }
 });
+
+// YouTube Integration
+if (window.location.hostname.includes('youtube.com')) {
+  setInterval(checkForVideoPlayer, 1000);
+  setInterval(checkVideoTime, 500);
+}
+
+function checkForVideoPlayer() {
+  const controls = document.querySelector('.ytp-right-controls');
+  if (controls && !document.querySelector('.factfinder-yt-btn')) {
+    const btn = document.createElement('button');
+    btn.className = 'factfinder-yt-btn';
+    btn.innerHTML = '🔍 Fact Check';
+    btn.title = 'Analyze video transcript for claims';
+
+    btn.onclick = () => {
+      btn.classList.add('analyzing');
+      btn.innerHTML = '⏳ Analyzing...';
+
+      // Send URL to background to fetch transcript
+      chrome.runtime.sendMessage({
+        action: 'analyzeVideo',
+        url: window.location.href
+      });
+    };
+
+    controls.prepend(btn);
+  }
+}
+
+function checkVideoTime() {
+  const video = document.querySelector('video');
+  if (!video || videoClaims.length === 0) return;
+
+  const currentTime = video.currentTime;
+
+  // Find claim matching current time (within 5 seconds window)
+  const claim = videoClaims.find(c =>
+    currentTime >= c.timestamp &&
+    currentTime < c.timestamp + 5 &&
+    Math.floor(currentTime) !== lastCheckedTime // Avoid spamming same second
+  );
+
+  if (claim) {
+    lastCheckedTime = Math.floor(currentTime);
+    showGlassyNotification(claim);
+  }
+}
+
+/**
+ * Show Glassy Notification (New UI)
+ */
+function showGlassyNotification(claim) {
+  if (activePopup) activePopup.remove();
+
+  const popup = document.createElement('div');
+  popup.className = 'factfinder-glassy-card';
+
+  popup.innerHTML = `
+    <div class="factfinder-glassy-header">
+      <span class="factfinder-glassy-badge ${claim.status}">${claim.status}</span>
+      <button class="factfinder-glassy-close">&times;</button>
+    </div>
+    <div class="factfinder-glassy-content">
+      <span class="factfinder-glassy-claim">"${escapeHtml(claim.claim)}"</span>
+      ${claim.correction ? `<div class="factfinder-glassy-correction">💡 ${escapeHtml(claim.correction)}</div>` : ''}
+    </div>
+  `;
+
+  document.body.appendChild(popup);
+  activePopup = popup;
+
+  // Auto-remove after 8 seconds
+  const timeout = setTimeout(() => {
+    if (popup.parentNode) popup.remove();
+    if (activePopup === popup) activePopup = null;
+  }, 8000);
+
+  popup.querySelector('.factfinder-glassy-close').onclick = () => {
+    popup.remove();
+    activePopup = null;
+    clearTimeout(timeout);
+  };
+}
+
 
 /**
  * Show toast notification
@@ -90,6 +191,106 @@ function showToast(message, type = 'info') {
       from { opacity: 1; }
       to { opacity: 0; }
     }
+    .factfinder-yt-btn {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 14px;
+      cursor: pointer;
+      margin-left: 10px;
+      transition: background-color 0.2s, transform 0.2s;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    .factfinder-yt-btn:hover {
+      background: #0056b3;
+      transform: translateY(-1px);
+    }
+    .factfinder-yt-btn.analyzing {
+      background: #ffc107;
+      color: #333;
+      cursor: wait;
+    }
+    .factfinder-yt-btn.active {
+      background: #28a745;
+    }
+    .factfinder-glassy-card {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 350px;
+      background: rgba(255, 255, 255, 0.8);
+      backdrop-filter: blur(10px);
+      border-radius: 16px;
+      box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      z-index: 2147483647;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      animation: slideInUp 0.3s ease-out;
+      color: #333;
+      overflow: hidden;
+    }
+    .factfinder-glassy-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+    }
+    .factfinder-glassy-badge {
+      font-size: 12px;
+      font-weight: 700;
+      padding: 4px 8px;
+      border-radius: 6px;
+      text-transform: uppercase;
+      color: white;
+    }
+    .factfinder-glassy-badge.TRUE { background: #28a745; }
+    .factfinder-glassy-badge.FALSE { background: #dc3545; }
+    .factfinder-glassy-badge.MIXED { background: #ffc107; color: #333; }
+    .factfinder-glassy-close {
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      color: #666;
+      line-height: 1;
+      padding: 0;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      transition: background-color 0.2s;
+    }
+    .factfinder-glassy-close:hover {
+      background: rgba(0, 0, 0, 0.05);
+    }
+    .factfinder-glassy-content {
+      padding: 16px;
+    }
+    .factfinder-glassy-claim {
+      font-size: 15px;
+      font-weight: 600;
+      line-height: 1.4;
+      display: block;
+      margin-bottom: 10px;
+    }
+    .factfinder-glassy-correction {
+      font-size: 14px;
+      line-height: 1.5;
+      color: #555;
+      background: rgba(0, 123, 255, 0.1);
+      padding: 8px 12px;
+      border-radius: 8px;
+      border-left: 3px solid #007bff;
+    }
+    @keyframes slideInUp {
+      from { transform: translateY(100%); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
   `;
 
   document.head.appendChild(style);
@@ -131,18 +332,18 @@ function showFactCheckModal(data) {
           </div>
           <button class="factfinder-close-btn">&times;</button>
         </div>
-        
+
         <div class="factfinder-modal-body">
           <div class="factfinder-selected-text">
             <h3>Selected Text:</h3>
             <p>"${escapeHtml(data.text.substring(0, 300))}${data.text.length > 300 ? '...' : ''}"</p>
           </div>
-          
+
           <div class="factfinder-summary">
             <h3>Analysis:</h3>
             <div class="factfinder-summary-text">${formatFactCheckResponse(data.summary || 'No summary available')}</div>
           </div>
-          
+
           ${data.sources && data.sources.length > 0 ? `
             <div class="factfinder-sources">
               <h3>Verified Sources:</h3>
@@ -159,7 +360,7 @@ function showFactCheckModal(data) {
               </div>
             </div>
           ` : ''}
-          
+
           ${data.claims && data.claims.length > 0 ? `
             <div class="factfinder-claims">
               <h3>Claims Breakdown:</h3>
@@ -174,7 +375,7 @@ function showFactCheckModal(data) {
               `).join('')}
             </div>
           ` : ''}
-          
+
         </div>
       </div>
     </div>
@@ -357,7 +558,7 @@ function showFactCheckModal(data) {
     .factfinder-claim-status.TRUE { background: #e8f5e9; color: #2e7d32; }
     .factfinder-claim-status.FALSE { background: #ffebee; color: #c62828; }
     .factfinder-claim-status.MIXED { background: #fff3e0; color: #ef6c00; }
-    
+
     .factfinder-claim-text {
       font-weight: 600;
       color: #333;
@@ -368,7 +569,7 @@ function showFactCheckModal(data) {
       color: #666;
       line-height: 1.6;
     }
-    
+
     @keyframes slideUp {
       from { transform: translateY(50px); opacity: 0; }
       to { transform: translateY(0); opacity: 1; }
