@@ -6,7 +6,6 @@
 console.log('🔍 FactFinder content script loaded');
 
 let videoClaims = [];
-let activePopup = null;
 let lastCheckedTime = -1;
 
 // Listen for keyboard shortcut (Ctrl+Shift+F)
