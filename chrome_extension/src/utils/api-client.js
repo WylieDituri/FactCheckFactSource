@@ -171,30 +171,60 @@ export async function analyzeTranscript(transcript, apiKey) {
   // Format transcript for the prompt
   // We group text into chunks with timestamps to help the AI identify when things were said
   const formattedTranscript = transcript
-    .filter((_, i) => i % 5 === 0) // Sample every 5th line to reduce token count if needed, or pass all if short
     .map(t => `[${t.start.toFixed(0)}s] ${t.text}`)
     .join('\n');
 
-  const prompt = `You are a real-time fact-checking assistant for a video. Analyze the following transcript and identify factual claims that are either TRUE, FALSE, or MISLEADING.
+  // Debug logging
+  console.log(`📝 Analyzing transcript: ${transcript.length} lines`);
+  console.log(`📝 Formatted transcript length: ${formattedTranscript.length} chars`);
+  console.log(`📝 Transcript sample (first 500 chars):\n${formattedTranscript.substring(0, 500)}`);
+
+
+  const prompt = `You are a strict fact-checking assistant. Extract ONLY objective, verifiable claims about the world.
 
 Transcript:
-${formattedTranscript.substring(0, 30000)} ... (truncated if too long)
+${formattedTranscript.substring(0, 30000)} ...
 
-Return a JSON object with this structure:
+CRITICAL RULES:
+1. **ONLY extract claims that can be verified using external, authoritative sources.**
+
+2. **ACCEPTABLE claims** (extract these):
+   - Historical facts: "The moon landing occurred in 1969"
+   - Scientific statements: "Water boils at 100°C at sea level"
+   - Statistical data: "The global population exceeded 8 billion in 2022"
+   - Geographical facts: "Mount Everest is the tallest mountain"
+   - Published research: "Studies show coffee improves alertness"
+   - Public figures' statements: "The president announced new policies"
+
+3. **HANDLING PERSONAL NARRATIVES** (IMPORTANT):
+   - You MAY extract claims from personal stories IF they contain verifiable facts.
+   - Example: "I moved from Lebanon" -> Extract: "Lebanon is a country/place" (Implicit fact) OR better yet, look for specific claims about the place.
+   - Example: "I got my visa under the H1B program" -> Extract: "The H1B program is a US visa category"
+   - **DO NOT** extract purely subjective feelings ("I felt sad", "I love this place").
+   - **DO** extract objective statements made by the speaker ("The population is 5 million").
+
+4. **REJECT ONLY**:
+   - Purely subjective opinions ("It is the best country")
+   - unverifiable personal anecdotes ("I ate a sandwich")
+   - Vague statements ("Things are bad")
+
+5. **If a sentence contains BOTH a personal reference AND a fact**, extract ONLY the fact:
+   - Input: "I read that the Eiffel Tower was built in 1889"
+   - Extract: "The Eiffel Tower was built in 1889"
+
+Return a JSON object with ONLY verifiable claims:
 {
   "claims": [
     {
       "timestamp": number (seconds),
-      "claim": "The claim made in the video",
-      "status": "VERIFIED" | "DEBUNKED" | "MISLEADING",
-      "correction": "The truth (if debunked)",
-      "confidence": number (0-1)
+      "claim": "The objective, verifiable claim text",
+      "status": "VERIFIED" | "DEBUNKED" | "MISLEADING" | "UNVERIFIABLE",
+      "correction": "Brief context or correction"
     }
   ]
 }
 
-Only include claims that are verifiable facts. Ignore opinions.
-"timestamp" should be the approximate start time in seconds where the claim is made.
+If there are NO verifiable claims, return: { "claims": [] }
 `;
 
   const requestBody = {
@@ -219,7 +249,11 @@ Only include claims that are verifiable facts. Ignore opinions.
     }
 
     const data = await response.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+    let text = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+
+    // Clean up markdown code blocks if present
+    text = text.replace(/```json\n?|```/g, '').trim();
+
     return JSON.parse(text);
   } catch (error) {
     console.error("Transcript Analysis Error:", error);

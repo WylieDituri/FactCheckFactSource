@@ -10,9 +10,11 @@ let activePopup = null;
 let lastCheckedTime = -1;
 
 // Listen for keyboard shortcut (Ctrl+Shift+F)
+// Listen for keyboard shortcut (Ctrl+Shift+F)
 document.addEventListener('keydown', (e) => {
   if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'f') {
     e.preventDefault();
+    console.log('⌨️ Manual shortcut triggered');
 
     const selection = window.getSelection();
     const text = selection.toString().trim();
@@ -55,6 +57,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       btn.classList.remove('analyzing');
       btn.classList.add('active');
     }
+
+    // Show claim navigation sidebar
+    showClaimSidebar();
   }
 });
 
@@ -104,42 +109,323 @@ function checkVideoTime() {
     lastCheckedTime = Math.floor(currentTime);
     showGlassyNotification(claim);
   }
+
+  // Update sidebar highlighting
+  updateSidebarHighlight(currentTime);
 }
 
 /**
- * Show Glassy Notification (New UI)
+ * Show Claim Navigation Sidebar
  */
-function showGlassyNotification(claim) {
-  if (activePopup) activePopup.remove();
+function showClaimSidebar() {
+  // Remove existing sidebar
+  const existing = document.querySelector('.factfinder-claim-sidebar');
+  if (existing) existing.remove();
 
-  const popup = document.createElement('div');
-  popup.className = 'factfinder-glassy-card';
+  if (videoClaims.length === 0) return;
 
-  popup.innerHTML = `
+  const sidebar = document.createElement('div');
+  sidebar.className = 'factfinder-claim-sidebar';
+
+  const header = document.createElement('div');
+  header.className = 'factfinder-sidebar-header';
+  header.innerHTML = `
+    <span>🔍 Fact Check Claims (${videoClaims.length})</span>
+    <button class="factfinder-sidebar-close">×</button>
+  `;
+
+  const claimsList = document.createElement('div');
+  claimsList.className = 'factfinder-claims-list';
+
+  videoClaims.forEach((claim, index) => {
+    const claimItem = document.createElement('div');
+    claimItem.className = 'factfinder-claim-item';
+    claimItem.dataset.timestamp = claim.timestamp;
+    claimItem.dataset.index = index;
+
+    const statusClass = claim.status.toLowerCase();
+    const timeStr = formatTimestamp(claim.timestamp);
+    const claimText = claim.claim.length > 80 ? claim.claim.substring(0, 80) + '...' : claim.claim;
+
+    claimItem.innerHTML = `
+      <div class="factfinder-claim-time">${timeStr}</div>
+      <div class="factfinder-claim-status-badge ${statusClass}">${claim.status}</div>
+      <div class="factfinder-claim-text">${claimText}</div>
+    `;
+
+    // Click to jump to timestamp
+    claimItem.addEventListener('click', () => jumpToTimestamp(claim.timestamp));
+
+    claimsList.appendChild(claimItem);
+  });
+
+  sidebar.appendChild(header);
+  sidebar.appendChild(claimsList);
+
+  // Close button handler
+  const closeBtn = header.querySelector('.factfinder-sidebar-close');
+  closeBtn.addEventListener('click', () => sidebar.remove());
+
+  // Add styles
+  addSidebarStyles();
+
+  document.body.appendChild(sidebar);
+}
+
+/**
+ * Update sidebar highlighting based on current video time
+ */
+function updateSidebarHighlight(currentTime) {
+  const sidebar = document.querySelector('.factfinder-claim-sidebar');
+  if (!sidebar) return;
+
+  const items = sidebar.querySelectorAll('.factfinder-claim-item');
+  let foundCurrent = false;
+
+  items.forEach((item, index) => {
+    const timestamp = parseFloat(item.dataset.timestamp);
+    item.classList.remove('active', 'upcoming');
+
+    // Current claim (within 5 second window)
+    if (currentTime >= timestamp && currentTime < timestamp + 5) {
+      item.classList.add('active');
+      foundCurrent = true;
+      // Scroll into view
+      item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    // Next upcoming claim
+    else if (!foundCurrent && currentTime < timestamp && index === 0) {
+      item.classList.add('upcoming');
+    } else if (!foundCurrent && currentTime < timestamp) {
+      const prevTimestamp = index > 0 ? parseFloat(items[index - 1].dataset.timestamp) : 0;
+      if (currentTime >= prevTimestamp) {
+        item.classList.add('upcoming');
+      }
+    }
+  });
+}
+
+/**
+ * Jump to timestamp in video
+ */
+function jumpToTimestamp(timestamp) {
+  const video = document.querySelector('video');
+  if (!video) return;
+
+  video.currentTime = timestamp;
+  // Optionally play the video if paused
+  if (video.paused) {
+    video.play();
+  }
+}
+
+/**
+ * Format seconds to MM:SS
+ */
+function formatTimestamp(seconds) {
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+/**
+ * Add sidebar styles
+ */
+function addSidebarStyles() {
+  if (document.getElementById('factfinder-sidebar-styles')) return;
+
+  const style = document.createElement('style');
+  style.id = 'factfinder-sidebar-styles';
+  style.textContent = `
+    .factfinder-claim-sidebar {
+      position: fixed;
+      top: 80px;
+      right: 20px;
+      width: 350px;
+      max-height: calc(100vh - 100px);
+      background: rgba(0, 0, 0, 0.9);
+      backdrop-filter: blur(20px);
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+      z-index: 2147483646;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .factfinder-sidebar-header {
+      padding: 16px;
+      background: rgba(255, 255, 255, 0.05);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: white;
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .factfinder-sidebar-close {
+      background: none;
+      border: none;
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 24px;
+      cursor: pointer;
+      padding: 0;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      transition: all 0.2s;
+    }
+
+    .factfinder-sidebar-close:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+    }
+
+    .factfinder-claims-list {
+      overflow-y: auto;
+      padding: 8px;
+    }
+
+    .factfinder-claim-item {
+      padding: 12px;
+      margin-bottom: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: 2px solid transparent;
+    }
+
+    .factfinder-claim-item:hover {
+      background: rgba(255, 255, 255, 0.1);
+      transform: translateX(-4px);
+    }
+
+    .factfinder-claim-item.active {
+      background: rgba(59, 130, 246, 0.2);
+      border-color: rgba(59, 130, 246, 0.5);
+      box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+    }
+
+    .factfinder-claim-item.upcoming {
+      border-left: 3px solid rgba(251, 191, 36, 0.6);
+    }
+
+    .factfinder-claim-time {
+      font-size: 12px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.6);
+      margin-bottom: 6px;
+    }
+
+    .factfinder-claim-item.active .factfinder-claim-time {
+      color: rgba(59, 130, 246, 1);
+    }
+
+    .factfinder-claim-status-badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .factfinder-claim-status-badge.verified {
+      background: rgba(34, 197, 94, 0.2);
+      color: #4ade80;
+    }
+
+    .factfinder-claim-status-badge.debunked {
+      background: rgba(239, 68, 68, 0.2);
+      color: #f87171;
+    }
+
+    .factfinder-claim-status-badge.misleading {
+      background: rgba(251, 191, 36, 0.2);
+      color: #fbbf24;
+    }
+
+    .factfinder-claim-status-badge.unverifiable {
+      background: rgba(156, 163, 175, 0.2);
+      color: #9ca3af;
+    }
+
+    .factfinder-claim-text {
+      font-size: 13px;
+      line-height: 1.4;
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    .factfinder-claim-item.active .factfinder-claim-text {
+      color: white;
+      font-weight: 500;
+    }
+  `;
+
+  document.head.appendChild(style);
+}
+
+
+/**
+ * Show Glassy Notification
+ */
+function showGlassyNotification(claimData) {
+  // Remove existing
+  const existing = document.querySelector('.factfinder-glassy-card');
+  if (existing) existing.remove();
+
+  const card = document.createElement('div');
+  card.className = 'factfinder-glassy-card';
+
+  // Status Badge
+  const statusClass = claimData.status.toLowerCase();
+
+  // Source HTML
+  let sourceHtml = '';
+  if (claimData.source && claimData.source.url) {
+    const sourceName = claimData.source.name || 'Verified Source';
+    sourceHtml = `
+      <div class="factfinder-glassy-source">
+        Source: <a href="${claimData.source.url}" target="_blank" rel="noopener noreferrer">${sourceName}</a>
+      </div>
+    `;
+  }
+
+  card.innerHTML = `
     <div class="factfinder-glassy-header">
-      <span class="factfinder-glassy-badge ${claim.status}">${claim.status}</span>
+      <span class="factfinder-glassy-badge ${statusClass}">${claimData.status}</span>
       <button class="factfinder-glassy-close">&times;</button>
     </div>
     <div class="factfinder-glassy-content">
-      <span class="factfinder-glassy-claim">"${escapeHtml(claim.claim)}"</span>
-      ${claim.correction ? `<div class="factfinder-glassy-correction">💡 ${escapeHtml(claim.correction)}</div>` : ''}
+      <div class="factfinder-glassy-claim">"${claimData.claim}"</div>
+      <div class="factfinder-glassy-correction">${claimData.correction || ''}</div>
+      ${sourceHtml}
     </div>
   `;
 
-  document.body.appendChild(popup);
-  activePopup = popup;
+  // Close button
+  card.querySelector('.factfinder-glassy-close').addEventListener('click', () => {
+    card.style.opacity = '0';
+    setTimeout(() => card.remove(), 300);
+  });
 
-  // Auto-remove after 8 seconds
-  const timeout = setTimeout(() => {
-    if (popup.parentNode) popup.remove();
-    if (activePopup === popup) activePopup = null;
-  }, 8000);
+  document.body.appendChild(card);
 
-  popup.querySelector('.factfinder-glassy-close').onclick = () => {
-    popup.remove();
-    activePopup = null;
-    clearTimeout(timeout);
-  };
+  // Auto-remove after 15 seconds
+  setTimeout(() => {
+    if (document.body.contains(card)) {
+      card.style.opacity = '0';
+      setTimeout(() => card.remove(), 300);
+    }
+  }, 15000);
 }
 
 
@@ -188,107 +474,91 @@ function showToast(message, type = 'info') {
     @keyframes fadeOut {
       from { opacity: 1; }
       to { opacity: 0; }
-    }
-    .factfinder-yt-btn {
-      background: #007bff;
-      color: white;
-      border: none;
-      padding: 8px 12px;
-      border-radius: 4px;
-      font-size: 14px;
-      cursor: pointer;
-      margin-left: 10px;
-      transition: background-color 0.2s, transform 0.2s;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    }
-    .factfinder-yt-btn:hover {
-      background: #0056b3;
-      transform: translateY(-1px);
-    }
-    .factfinder-yt-btn.analyzing {
-      background: #ffc107;
-      color: #333;
-      cursor: wait;
-    }
-    .factfinder-yt-btn.active {
-      background: #28a745;
-    }
-    .factfinder-glassy-card {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      width: 350px;
-      background: rgba(255, 255, 255, 0.8);
-      backdrop-filter: blur(10px);
-      border-radius: 16px;
-      box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
-      border: 1px solid rgba(255, 255, 255, 0.18);
-      z-index: 2147483647;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      animation: slideInUp 0.3s ease-out;
-      color: #333;
-      overflow: hidden;
-    }
-    .factfinder-glassy-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 12px 16px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.3);
-    }
-    .factfinder-glassy-badge {
-      font-size: 12px;
-      font-weight: 700;
-      padding: 4px 8px;
-      border-radius: 6px;
-      text-transform: uppercase;
-      color: white;
-    }
-    .factfinder-glassy-badge.TRUE { background: #28a745; }
-    .factfinder-glassy-badge.FALSE { background: #dc3545; }
-    .factfinder-glassy-badge.MIXED { background: #ffc107; color: #333; }
-    .factfinder-glassy-close {
-      background: none;
-      border: none;
-      font-size: 24px;
-      cursor: pointer;
-      color: #666;
-      line-height: 1;
-      padding: 0;
-      width: 24px;
-      height: 24px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 50%;
-      transition: background-color 0.2s;
-    }
-    .factfinder-glassy-close:hover {
-      background: rgba(0, 0, 0, 0.05);
-    }
-    .factfinder-glassy-content {
-      padding: 16px;
-    }
-    .factfinder-glassy-claim {
-      font-size: 15px;
-      font-weight: 600;
-      line-height: 1.4;
-      display: block;
-      margin-bottom: 10px;
-    }
-    .factfinder-glassy-correction {
-      font-size: 14px;
-      line-height: 1.5;
-      color: #555;
-      background: rgba(0, 123, 255, 0.1);
-      padding: 8px 12px;
-      border-radius: 8px;
-      border-left: 3px solid #007bff;
-    }
-    @keyframes slideInUp {
-      from { transform: translateY(100%); opacity: 0; }
+  }
+    .factfinder - yt - btn.analyzing {
+    background: #ffc107;
+    color: #333;
+    cursor: wait;
+  }
+    .factfinder - yt - btn.active {
+    background: #28a745;
+  }
+    .factfinder - glassy - card {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 350px;
+    background: rgba(255, 255, 255, 0.8);
+    backdrop - filter: blur(10px);
+    border - radius: 16px;
+    box - shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    z - index: 2147483647;
+    font - family: -apple - system, BlinkMacSystemFont, "Segoe UI", Roboto, sans - serif;
+    animation: slideInUp 0.3s ease - out;
+    color: #333;
+    overflow: hidden;
+  }
+    .factfinder - glassy - header {
+    display: flex;
+    justify - content: space - between;
+    align - items: center;
+    padding: 12px 16px;
+    border - bottom: 1px solid rgba(255, 255, 255, 0.3);
+  }
+    .factfinder - glassy - badge {
+    font - size: 12px;
+    font - weight: 700;
+    padding: 4px 8px;
+    border - radius: 6px;
+    text - transform: uppercase;
+    color: white;
+  }
+    .factfinder - glassy - badge.TRUE { background: #28a745; }
+    .factfinder - glassy - badge.FALSE { background: #dc3545; }
+    .factfinder - glassy - badge.MIXED { background: #ffc107; color: #333; }
+    .factfinder - glassy - close {
+    background: none;
+    border: none;
+    font - size: 24px;
+    cursor: pointer;
+    color: #666;
+    line - height: 1;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align - items: center;
+    justify - content: center;
+    border - radius: 50 %;
+    transition: background - color 0.2s;
+  }
+    .factfinder - glassy - close:hover {
+    background: rgba(0, 0, 0, 0.05);
+  }
+    .factfinder - glassy - content {
+    padding: 16px;
+  }
+    .factfinder - glassy - claim {
+    font - size: 15px;
+    font - weight: 600;
+    line - height: 1.4;
+    display: block;
+    margin - bottom: 10px;
+  }
+    .factfinder - glassy - correction {
+    font - size: 14px;
+    line - height: 1.5;
+    color: #555;
+    background: rgba(0, 123, 255, 0.1);
+    padding: 8px 12px;
+    border - radius: 8px;
+    border - left: 3px solid #007bff;
+  }
+  @keyframes slideInUp {
+      from { transform: translateY(100 %); opacity: 0; }
       to { transform: translateY(0); opacity: 1; }
-    }
+  }
   `;
 
   document.head.appendChild(style);
@@ -324,7 +594,7 @@ function showFactCheckModal(data) {
   const logoUrl = chrome.runtime.getURL('IMG_2285.PNG');
   
   const modalContent = `
-    <div class="factfinder-modal-overlay">
+    < div class="factfinder-modal-overlay" >
       <div class="factfinder-modal-content">
         <div class="factfinder-modal-header">
           <h2 class="factfinder-modal-title">
@@ -387,8 +657,8 @@ function showFactCheckModal(data) {
 
         </div>
       </div>
-    </div>
-  `;
+    </div >
+    `;
 
   modal.innerHTML = modalContent;
 
@@ -411,7 +681,6 @@ function showFactCheckModal(data) {
       align-items: stretch;
       justify-content: flex-end;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      animation: fadeIn 0.3s ease;
     }
     
     /* Right-side column with liquid glass effect */

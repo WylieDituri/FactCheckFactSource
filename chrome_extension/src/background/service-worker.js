@@ -28,31 +28,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   }
 });
 
-// Handle keyboard shortcut
-chrome.commands.onCommand.addListener(async (command) => {
-  if (command === 'fact-check') {
-    console.log('⌨️ Fact-check keyboard shortcut triggered');
-
-    // Get active tab
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-
-    // Request selected text from content script
-    chrome.tabs.sendMessage(tab.id, {
-      action: 'getSelection'
-    }, async (response) => {
-      if (response && response.text) {
-        await performFactCheck(response.text, tab.id);
-      } else {
-        // Show "no text selected" notification
-        chrome.tabs.sendMessage(tab.id, {
-          action: 'showToast',
-          message: '⚠️ Please highlight some text first',
-          type: 'error'
-        });
-      }
-    });
-  }
-});
+// Keyboard shortcut handled by content script manually
 
 // Handle messages from content script and popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {

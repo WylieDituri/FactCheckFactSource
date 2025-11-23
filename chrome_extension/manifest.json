@@ -20,9 +20,15 @@
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["src/content/content-script.js"],
-      "css": ["src/content/content-styles.css"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "src/content/content-script.js"
+      ],
+      "css": [
+        "src/content/content-styles.css"
+      ],
       "run_at": "document_idle"
     }
   ],
@@ -43,15 +49,6 @@
     "128": "IMG_2285.PNG"
   },
   "options_page": "src/options/options.html",
-  "commands": {
-    "fact-check": {
-      "suggested_key": {
-        "default": "Ctrl+Shift+F",
-        "mac": "Command+Shift+F"
-      },
-      "description": "Fact check selected text"
-    }
-  },
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
   },
@@ -62,4 +59,3 @@
     }
   ]
 }
-

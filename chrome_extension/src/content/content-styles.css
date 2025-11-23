@@ -32,13 +32,25 @@
 }
 
 @keyframes factfinder-slideInRight {
-  from { transform: translateX(400px); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
+  from {
+    transform: translateX(400px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 
 @keyframes factfinder-fadeOut {
-  from { opacity: 1; }
-  to { opacity: 0; }
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
 }
 
 /* Modal Overlay */
@@ -77,8 +89,13 @@
 }
 
 @keyframes factfinder-fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes factfinder-slideInRight {
@@ -89,6 +106,18 @@
   to { 
     transform: translateX(0); 
     opacity: 1; 
+  }
+}
+
+@keyframes factfinder-slideUp {
+  from {
+    transform: translateY(50px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
   }
 }
 
@@ -407,125 +436,172 @@
 /* Glassy UI Styles for notifications */
 .factfinder-glassy-card {
   position: fixed;
-  top: 20px;
+  top: 80px;
   right: 20px;
   width: 320px;
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  max-height: 80vh;
+  overflow-y: auto;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 16px;
-  padding: 0;
-  box-shadow: none;
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+  color: white;
+  font-family: 'Roboto', sans-serif;
   z-index: 2147483647;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  animation: factfinder-slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-  transition: all 0.3s ease;
-  overflow: hidden;
+  padding: 16px;
+  animation: factfinder-slide-in 0.5s ease-out;
+  transition: opacity 0.3s ease;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+}
+
+/* Custom scrollbar for WebKit */
+.factfinder-glassy-card::-webkit-scrollbar {
+  width: 6px;
+}
+
+.factfinder-glassy-card::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.factfinder-glassy-card::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
 }
 
 .factfinder-glassy-card:hover {
-  background: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .factfinder-glassy-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 14px 16px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-  background: rgba(255, 255, 255, 0.4);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  margin-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 8px;
 }
 
 .factfinder-glassy-badge {
   font-size: 11px;
   font-weight: 700;
-  padding: 5px 12px;
-  border-radius: 10px;
+  padding: 4px 8px;
+  border-radius: 12px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
-.factfinder-glassy-badge.VERIFIED { 
-  background: rgba(76, 175, 80, 0.15); 
-  color: #2e7d32; 
+.factfinder-glassy-badge.verified {
+  background: rgba(46, 204, 113, 0.2);
+  color: #2ecc71;
+  border: 1px solid rgba(46, 204, 113, 0.4);
 }
 
-.factfinder-glassy-badge.DEBUNKED { 
-  background: rgba(244, 67, 54, 0.15); 
-  color: #c62828; 
+.factfinder-glassy-badge.debunked {
+  background: rgba(231, 76, 60, 0.2);
+  color: #e74c3c;
+  border: 1px solid rgba(231, 76, 60, 0.4);
 }
 
-.factfinder-glassy-badge.MISLEADING { 
-  background: rgba(255, 152, 0, 0.15); 
-  color: #ef6c00; 
+.factfinder-glassy-badge.misleading {
+  background: rgba(241, 196, 15, 0.2);
+  color: #f1c40f;
+  border: 1px solid rgba(241, 196, 15, 0.4);
 }
 
+.factfinder-glassy-badge.unverifiable {
+  background: rgba(149, 165, 166, 0.2);
+  color: #95a5a6;
+  border: 1px solid rgba(149, 165, 166, 0.4);
+}
+
+/* Legacy status classes for compatibility */
+.factfinder-glassy-badge.VERIFIED,
 .factfinder-glassy-badge.TRUE { 
-  background: rgba(76, 175, 80, 0.15); 
-  color: #2e7d32; 
+  background: rgba(46, 204, 113, 0.2);
+  color: #2ecc71;
+  border: 1px solid rgba(46, 204, 113, 0.4);
 }
 
+.factfinder-glassy-badge.DEBUNKED,
 .factfinder-glassy-badge.FALSE { 
-  background: rgba(244, 67, 54, 0.15); 
-  color: #c62828; 
+  background: rgba(231, 76, 60, 0.2);
+  color: #e74c3c;
+  border: 1px solid rgba(231, 76, 60, 0.4);
 }
 
+.factfinder-glassy-badge.MISLEADING,
 .factfinder-glassy-badge.MIXED { 
-  background: rgba(255, 152, 0, 0.15); 
-  color: #ef6c00; 
+  background: rgba(241, 196, 15, 0.2);
+  color: #f1c40f;
+  border: 1px solid rgba(241, 196, 15, 0.4);
 }
 
 .factfinder-glassy-close {
-  background: rgba(0, 0, 0, 0.05);
+  background: none;
   border: none;
+  color: rgba(255, 255, 255, 0.7);
   cursor: pointer;
-  color: #666;
-  font-size: 20px;
+  font-size: 18px;
   padding: 0;
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
+  line-height: 1;
   transition: all 0.2s;
 }
 
 .factfinder-glassy-close:hover {
-  background: rgba(0, 0, 0, 0.1);
-  color: #333;
-  transform: scale(1.1);
+  color: white;
 }
 
 .factfinder-glassy-content {
-  padding: 16px;
   font-size: 14px;
-  color: #333;
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
 .factfinder-glassy-claim {
   font-weight: 600;
-  margin-bottom: 10px;
-  display: block;
-  font-size: 15px;
-  line-height: 1.5;
+  margin-bottom: 8px;
+  color: rgba(255, 255, 255, 0.95);
 }
 
 .factfinder-glassy-correction {
   font-size: 13px;
-  color: #555;
-  background: rgba(102, 126, 234, 0.08);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  padding: 10px 12px;
-  border-radius: 8px;
-  border-left: 3px solid #667eea;
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: 8px;
+}
+
+.factfinder-glassy-source {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  display: block;
   margin-top: 8px;
-  line-height: 1.5;
+  text-decoration: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 8px;
+}
+
+.factfinder-glassy-source a {
+  color: #3498db;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.factfinder-glassy-source a:hover {
+  text-decoration: underline;
+  color: #5dade2;
+}
+
+@keyframes factfinder-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 /* YouTube Button */
