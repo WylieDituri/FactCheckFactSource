@@ -11,10 +11,10 @@ let currentSelection = '';
 document.addEventListener('keydown', (e) => {
   if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'f') {
     e.preventDefault();
-    
+
     const selection = window.getSelection();
     const text = selection.toString().trim();
-    
+
     if (text.length > 0) {
       currentSelection = text;
       // Send to background for fact-checking
@@ -34,11 +34,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     const selection = window.getSelection();
     sendResponse({ text: selection.toString().trim() });
   }
-  
+
   if (request.action === 'showToast') {
     showToast(request.message, request.type);
   }
-  
+
   if (request.action === 'showFactCheckResult') {
     showFactCheckModal(request.data);
   }
@@ -51,12 +51,12 @@ function showToast(message, type = 'info') {
   // Remove existing toasts
   const existing = document.getElementById('factfinder-toast');
   if (existing) existing.remove();
-  
+
   const toast = document.createElement('div');
   toast.id = 'factfinder-toast';
   toast.className = `factfinder-toast factfinder-toast-${type}`;
   toast.textContent = message;
-  
+
   const style = document.createElement('style');
   style.textContent = `
     .factfinder-toast {
@@ -91,10 +91,10 @@ function showToast(message, type = 'info') {
       to { opacity: 0; }
     }
   `;
-  
+
   document.head.appendChild(style);
   document.body.appendChild(toast);
-  
+
   setTimeout(() => toast.remove(), 3000);
 }
 
@@ -105,91 +105,83 @@ function showFactCheckModal(data) {
   // Remove existing modal
   const existing = document.getElementById('factfinder-modal');
   if (existing) existing.remove();
-  
+
   const modal = document.createElement('div');
   modal.id = 'factfinder-modal';
-  
-  // Check if text is not verifiable
-  const isNotVerifiable = data.isNotVerifiable || (data.summary && data.summary.trim().startsWith('NOT_VERIFIABLE:'));
-  let modalContent;
-  
-  if (isNotVerifiable) {
-    // Extract explanation
-    const explanation = data.summary.replace('NOT_VERIFIABLE:', '').trim();
-    
-    modalContent = `
-      <div class="factfinder-modal-overlay">
-        <div class="factfinder-modal-content">
-          <div class="factfinder-modal-header">
-            <h2>ℹ️ No Fact-Checking Needed</h2>
-            <button class="factfinder-close-btn">&times;</button>
+
+  // Determine status color and icon
+  const statusMap = {
+    'VERIFIED': { color: '#4caf50', icon: '✅', label: 'Verified' },
+    'DEBUNKED': { color: '#f44336', icon: '❌', label: 'Debunked' },
+    'PARTIALLY_TRUE': { color: '#ff9800', icon: '⚠️', label: 'Partially True' },
+    'UNVERIFIABLE': { color: '#9e9e9e', icon: '❓', label: 'Unverifiable' },
+    'NOT_FACTUAL': { color: '#607d8b', icon: 'ℹ️', label: 'Not Factual' },
+    'UNKNOWN': { color: '#9e9e9e', icon: '❓', label: 'Unknown' }
+  };
+
+  const status = statusMap[data.status] || statusMap['UNKNOWN'];
+
+  const modalContent = `
+    <div class="factfinder-modal-overlay">
+      <div class="factfinder-modal-content">
+        <div class="factfinder-modal-header">
+          <div class="factfinder-status-badge" style="background-color: ${status.color}20; color: ${status.color}; border: 1px solid ${status.color}">
+            <span class="factfinder-status-icon">${status.icon}</span>
+            <span class="factfinder-status-label">${status.label}</span>
           </div>
-          
-          <div class="factfinder-modal-body">
-            <div class="factfinder-selected-text">
-              <h3>Selected Text:</h3>
-              <p>${escapeHtml(data.text.substring(0, 300))}${data.text.length > 300 ? '...' : ''}</p>
-            </div>
-            
-            <div class="factfinder-info-message">
-              <p>${escapeHtml(explanation)}</p>
-            </div>
-            
-            <div class="factfinder-tip">
-              <strong>💡 Tip:</strong> Fact-checking works best with declarative statements containing factual claims.
-            </div>
-          </div>
+          <button class="factfinder-close-btn">&times;</button>
         </div>
-      </div>
-    `;
-  } else {
-    modalContent = `
-      <div class="factfinder-modal-overlay">
-        <div class="factfinder-modal-content">
-          <div class="factfinder-modal-header">
-            <h2>🔍 Fact Check Results</h2>
-            <button class="factfinder-close-btn">&times;</button>
+        
+        <div class="factfinder-modal-body">
+          <div class="factfinder-selected-text">
+            <h3>Selected Text:</h3>
+            <p>"${escapeHtml(data.text.substring(0, 300))}${data.text.length > 300 ? '...' : ''}"</p>
           </div>
           
-          <div class="factfinder-modal-body">
-            <div class="factfinder-selected-text">
-              <h3>Selected Text:</h3>
-              <p>${escapeHtml(data.text.substring(0, 300))}${data.text.length > 300 ? '...' : ''}</p>
-            </div>
-            
-            <div class="factfinder-score">
-              <div class="factfinder-score-label">Confidence Score:</div>
-              <div class="factfinder-score-bar">
-                <div class="factfinder-score-fill" style="width: ${(data.score || 0.5) * 100}%"></div>
-              </div>
-              <div class="factfinder-score-value">${Math.round((data.score || 0.5) * 100)}%</div>
-            </div>
-            
-            <div class="factfinder-summary">
-              <h3>Summary:</h3>
-              <div class="factfinder-summary-text">${formatFactCheckResponse(data.summary || data.response || 'No summary available')}</div>
-            </div>
-            
-            ${data.evidence && data.evidence.length > 0 ? `
-              <div class="factfinder-evidence">
-                <h3>Evidence:</h3>
-                ${data.evidence.map(e => `
-                  <div class="factfinder-evidence-item">
-                    <strong>${escapeHtml(e.title)}</strong>
-                    <a href="${escapeHtml(e.url)}" target="_blank">${escapeHtml(e.url)}</a>
-                    <p>${escapeHtml(e.excerpt)}</p>
-                  </div>
+          <div class="factfinder-summary">
+            <h3>Analysis:</h3>
+            <div class="factfinder-summary-text">${formatFactCheckResponse(data.summary || 'No summary available')}</div>
+          </div>
+          
+          ${data.sources && data.sources.length > 0 ? `
+            <div class="factfinder-sources">
+              <h3>Verified Sources:</h3>
+              <div class="factfinder-sources-list">
+                ${data.sources.map(source => `
+                  <a href="${escapeHtml(source.url)}" target="_blank" class="factfinder-source-item">
+                    <img src="https://www.google.com/s2/favicons?domain=${source.domain}&sz=32" alt="${escapeHtml(source.name)}" class="factfinder-source-icon">
+                    <div class="factfinder-source-info">
+                      <span class="factfinder-source-name">${escapeHtml(source.name)}</span>
+                      <span class="factfinder-source-domain">${escapeHtml(source.domain)}</span>
+                    </div>
+                  </a>
                 `).join('')}
               </div>
-            ` : ''}
-          </div>
+            </div>
+          ` : ''}
+          
+          ${data.claims && data.claims.length > 0 ? `
+            <div class="factfinder-claims">
+              <h3>Claims Breakdown:</h3>
+              ${data.claims.map(claim => `
+                <div class="factfinder-claim-item">
+                  <div class="factfinder-claim-header">
+                    <span class="factfinder-claim-status ${claim.status}">${claim.status}</span>
+                    <span class="factfinder-claim-text">${escapeHtml(claim.claim)}</span>
+                  </div>
+                  <p class="factfinder-claim-reasoning">${escapeHtml(claim.reasoning)}</p>
+                </div>
+              `).join('')}
+            </div>
+          ` : ''}
+          
         </div>
       </div>
-    `;
-  }
-  
+    </div>
+  `;
+
   modal.innerHTML = modalContent;
-  
+
   // Add styles
   const style = document.createElement('style');
   style.id = 'factfinder-modal-styles';
@@ -221,7 +213,7 @@ function showFactCheckModal(data) {
     }
     .factfinder-modal-header {
       padding: 24px;
-      border-bottom: 2px solid #f0f0f0;
+      border-bottom: 1px solid #eee;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -231,11 +223,16 @@ function showFactCheckModal(data) {
       border-radius: 16px 16px 0 0;
       z-index: 10;
     }
-    .factfinder-modal-header h2 {
-      margin: 0;
-      color: #333;
-      font-size: 24px;
+    .factfinder-status-badge {
+      display: flex;
+      align-items: center;
+      padding: 8px 16px;
+      border-radius: 50px;
       font-weight: 700;
+      font-size: 16px;
+    }
+    .factfinder-status-icon {
+      margin-right: 8px;
     }
     .factfinder-close-btn {
       background: none;
@@ -260,146 +257,135 @@ function showFactCheckModal(data) {
       padding: 24px;
     }
     .factfinder-selected-text {
-      margin-bottom: 20px;
+      margin-bottom: 24px;
+      padding: 16px;
+      background: #f8f9fa;
+      border-radius: 12px;
+      border-left: 4px solid #667eea;
     }
     .factfinder-selected-text h3 {
       color: #667eea;
       margin-top: 0;
-      margin-bottom: 12px;
-      font-size: 16px;
-      font-weight: 600;
+      margin-bottom: 8px;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
     .factfinder-selected-text p {
-      padding: 16px;
-      background: #f5f7ff;
-      border-radius: 8px;
-      border-left: 4px solid #667eea;
-      font-size: 14px;
-      line-height: 1.8;
-      color: #333;
       margin: 0;
-    }
-    .factfinder-score {
-      margin-bottom: 24px;
-      padding: 16px;
-      background: #f8f9fa;
-      border-radius: 8px;
-    }
-    .factfinder-score-label {
-      font-weight: 600;
-      margin-bottom: 8px;
-      color: #333;
-    }
-    .factfinder-score-bar {
-      height: 12px;
-      background: #e0e0e0;
-      border-radius: 6px;
-      overflow: hidden;
-      margin-bottom: 8px;
-    }
-    .factfinder-score-fill {
-      height: 100%;
-      background: linear-gradient(90deg, #ff6b6b 0%, #ffd93d 50%, #4caf50 100%);
-      transition: width 0.5s ease;
-    }
-    .factfinder-score-value {
-      text-align: right;
-      font-weight: 700;
-      color: #333;
-    }
-    .factfinder-summary {
-      margin-bottom: 20px;
-    }
-    .factfinder-summary h3 {
-      color: #ff6b6b;
-      margin-top: 0;
-      margin-bottom: 12px;
-      font-size: 18px;
-      font-weight: 600;
-    }
-    .factfinder-summary-text {
-      background: white;
-      padding: 16px;
-      border-radius: 8px;
-      border: 2px solid #ff6b6b;
-      line-height: 1.8;
-      color: #333;
-    }
-    .factfinder-evidence {
-      margin-top: 20px;
-    }
-    .factfinder-evidence h3 {
-      color: #4caf50;
-      margin-bottom: 12px;
-      font-size: 16px;
-      font-weight: 600;
-    }
-    .factfinder-evidence-item {
-      background: #f5f5f5;
-      padding: 12px;
-      border-radius: 6px;
-      margin-bottom: 8px;
-    }
-    .factfinder-evidence-item strong {
-      display: block;
-      color: #333;
-      margin-bottom: 4px;
-    }
-    .factfinder-evidence-item a {
-      color: #667eea;
-      font-size: 12px;
-      display: block;
-      margin-bottom: 4px;
-      text-decoration: none;
-    }
-    .factfinder-evidence-item p {
-      margin: 0;
-      font-size: 13px;
-      color: #666;
-    }
-    .factfinder-info-message {
-      padding: 20px;
-      background: #f5f5f5;
-      border-radius: 8px;
-      border-left: 4px solid #9e9e9e;
-      margin-bottom: 20px;
-    }
-    .factfinder-info-message p {
-      margin: 0;
+      font-style: italic;
       color: #555;
-      line-height: 1.8;
-      font-size: 15px;
-    }
-    .factfinder-tip {
-      padding: 16px;
-      background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
-      border-radius: 8px;
-      border-left: 4px solid #2196f3;
-      color: #1565c0;
-      font-size: 14px;
       line-height: 1.6;
     }
-    .factfinder-tip strong {
-      display: block;
-      margin-bottom: 4px;
+    .factfinder-summary h3, .factfinder-sources h3, .factfinder-claims h3 {
+      font-size: 18px;
+      font-weight: 700;
+      color: #333;
+      margin-bottom: 16px;
+      margin-top: 0;
     }
+    .factfinder-summary-text {
+      line-height: 1.8;
+      color: #333;
+      font-size: 16px;
+      margin-bottom: 32px;
+    }
+    .factfinder-sources {
+      margin-bottom: 32px;
+    }
+    .factfinder-sources-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 16px;
+    }
+    .factfinder-source-item {
+      display: flex;
+      align-items: center;
+      padding: 12px;
+      background: #fff;
+      border: 1px solid #eee;
+      border-radius: 12px;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+    .factfinder-source-item:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      border-color: #667eea;
+    }
+    .factfinder-source-icon {
+      width: 24px;
+      height: 24px;
+      margin-right: 12px;
+      border-radius: 4px;
+    }
+    .factfinder-source-info {
+      display: flex;
+      flex-direction: column;
+    }
+    .factfinder-source-name {
+      font-weight: 600;
+      color: #333;
+      font-size: 14px;
+    }
+    .factfinder-source-domain {
+      font-size: 12px;
+      color: #888;
+    }
+    .factfinder-claims {
+      margin-top: 24px;
+    }
+    .factfinder-claim-item {
+      background: #f8f9fa;
+      padding: 16px;
+      border-radius: 12px;
+      margin-bottom: 12px;
+    }
+    .factfinder-claim-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .factfinder-claim-status {
+      font-size: 12px;
+      font-weight: 700;
+      padding: 4px 8px;
+      border-radius: 4px;
+      margin-right: 12px;
+      text-transform: uppercase;
+    }
+    .factfinder-claim-status.TRUE { background: #e8f5e9; color: #2e7d32; }
+    .factfinder-claim-status.FALSE { background: #ffebee; color: #c62828; }
+    .factfinder-claim-status.MIXED { background: #fff3e0; color: #ef6c00; }
+    
+    .factfinder-claim-text {
+      font-weight: 600;
+      color: #333;
+    }
+    .factfinder-claim-reasoning {
+      margin: 0;
+      font-size: 14px;
+      color: #666;
+      line-height: 1.6;
+    }
+    
     @keyframes slideUp {
       from { transform: translateY(50px); opacity: 0; }
       to { transform: translateY(0); opacity: 1; }
     }
   `;
-  
+
   if (!document.getElementById('factfinder-modal-styles')) {
     document.head.appendChild(style);
   }
-  
+
   document.body.appendChild(modal);
-  
+
   // Close button handler
   modal.querySelector('.factfinder-close-btn').addEventListener('click', () => {
     modal.remove();
   });
-  
+
   // Click outside to close
   modal.querySelector('.factfinder-modal-overlay').addEventListener('click', (e) => {
     if (e.target.classList.contains('factfinder-modal-overlay')) {
@@ -413,19 +399,19 @@ function showFactCheckModal(data) {
  */
 function formatFactCheckResponse(text) {
   let html = escapeHtml(text);
-  
+
   // Convert **bold**
-  html = html.replace(/\*\*(.+?)\*\*/g, '<strong style="color: #c62828; font-weight: 700;">$1</strong>');
-  
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong style="color: #333; font-weight: 700;">$1</strong>');
+
   // Convert line breaks
-  html = html.replace(/\n\n/g, '</p><p style="margin: 12px 0; color: #333;">');
+  html = html.replace(/\n\n/g, '</p><p style="margin: 12px 0;">');
   html = html.replace(/\n/g, '<br>');
-  
+
   // Wrap in paragraph
   if (!html.startsWith('<')) {
-    html = '<p style="margin: 12px 0; color: #333;">' + html + '</p>';
+    html = '<p style="margin: 12px 0;">' + html + '</p>';
   }
-  
+
   return html;
 }
 

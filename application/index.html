@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Truth Overlay</title>
+  <link rel="stylesheet" href="styles.css">
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;800&display=swap" rel="stylesheet">
+</head>
+
+<body>
+  <div id="hud-container">
+    <!-- Fact Check Cards Area -->
+    <div id="cards-container">
+      <!-- Cards will be injected here via JS -->
+    </div>
+
+    <!-- Status Indicator (Hidden by default) -->
+    <div id="status-indicator" class="interactive" style="display: none;">
+      <div class="status-dot"></div>
+      <span class="status-text">Listening...</span>
+    </div>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,174 @@
+/* Global Reset & Transparent Background */
+body,
+html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    overflow: hidden;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-user-select: none;
+    /* Disable text selection */
+}
+
+/* The HUD Container - Covers the screen but allows clicks through empty areas */
+#hud-container {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    pointer-events: none;
+    /* Let clicks pass through by default */
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    /* Align items to bottom/center usually, or custom placement */
+    align-items: center;
+    padding-bottom: 50px;
+}
+
+/* Interactive Elements - Re-enable pointer events */
+.interactive {
+    pointer-events: auto;
+    cursor: pointer;
+}
+
+/* Status Indicator */
+#status-indicator {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(10px);
+    padding: 10px 20px;
+    border-radius: 30px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: white;
+    font-weight: 500;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    z-index: 1000;
+}
+
+.status-dot {
+    width: 10px;
+    height: 10px;
+    background-color: #ff4b4b;
+    border-radius: 50%;
+    box-shadow: 0 0 10px #ff4b4b;
+    animation: pulse-dot 1.5s infinite;
+}
+
+@keyframes pulse-dot {
+    0% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.5;
+        transform: scale(1.2);
+    }
+
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* Fact Check Cards Container */
+#cards-container {
+    position: fixed;
+    top: 20%;
+    right: 40px;
+    width: 350px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    z-index: 900;
+}
+
+/* Fact Check Card */
+.fact-card {
+    background: rgba(15, 15, 15, 0.85);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 20px;
+    color: white;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+    transform: translateX(120%);
+    /* Start off-screen */
+    transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    opacity: 0;
+}
+
+.fact-card.visible {
+    transform: translateX(0);
+    opacity: 1;
+}
+
+.fact-card.false {
+    border-left: 4px solid #ff4b4b;
+}
+
+.fact-card.true {
+    border-left: 4px solid #00e676;
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.verdict {
+    font-weight: 800;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    letter-spacing: 1px;
+}
+
+.verdict.false {
+    color: #ff4b4b;
+}
+
+.verdict.true {
+    color: #00e676;
+}
+
+.statement {
+    font-size: 1rem;
+    font-weight: 500;
+    margin-bottom: 12px;
+    line-height: 1.4;
+    color: #eee;
+}
+
+.correction {
+    font-size: 0.9rem;
+    color: #aaa;
+    margin-bottom: 16px;
+    padding-left: 10px;
+    border-left: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.source {
+    font-size: 0.75rem;
+    color: #666;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.source-icon {
+    width: 12px;
+    height: 12px;
+    background: #666;
+    /* Placeholder for favicon */
+    border-radius: 2px;
+}
