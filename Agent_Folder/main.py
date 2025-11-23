@@ -3,6 +3,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from youtube_transcript_api import YouTubeTranscriptApi
 from pydantic import BaseModel
 import uvicorn
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 app = FastAPI()
 
@@ -37,6 +41,26 @@ def get_transcript(request: TranscriptRequest):
     except Exception as e:
         print(f"Error fetching transcript: {e}")
         raise HTTPException(status_code=400, detail=str(e))
+
+class VerifyRequest(BaseModel):
+    claim: str
+
+@app.post("/verify")
+async def verify_claim(request: VerifyRequest):
+    try:
+        from truth_agent.agent import call_agent_async
+        print(f"🕵️‍♀️ Verifying claim: {request.claim}")
+        
+        # Construct a query for the agent
+        query = f"Verify this claim: '{request.claim}'"
+        
+        # Call the agent
+        response = await call_agent_async(query)
+        
+        return {"result": response}
+    except Exception as e:
+        print(f"Error verifying claim: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 def main():
     print("🚀 Starting FactFinder Agent Server on http://127.0.0.1:8000")

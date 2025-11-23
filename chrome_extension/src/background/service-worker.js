@@ -3,7 +3,7 @@
  * Handles API calls, context menu, keyboard shortcuts, and message routing
  */
 
-import { factCheckWithGemini, factCheckWithOpenAI, analyzeTranscript } from '../utils/api-client.js';
+import { factCheckWithGemini, factCheckWithOpenAI, analyzeTranscript, verifyClaimWithAgent } from '../utils/api-client.js';
 import { saveToHistory, getSettings } from '../utils/storage.js';
 import { fetchTranscript, extractVideoId } from '../utils/youtube.js';
 
@@ -93,7 +93,40 @@ async function performVideoAnalysis(url, tabId) {
     const analysis = await analyzeTranscript(transcript, apiKey);
     console.log('✅ Analysis complete:', analysis);
 
-    // 3. Send back to content script
+    // 3. Verify claims with Agent
+    if (analysis.claims && analysis.claims.length > 0) {
+      console.log(`🕵️‍♀️ Verifying ${analysis.claims.length} claims with Agent...`);
+
+      // Notify user verification is starting
+      if (tabId) {
+        chrome.tabs.sendMessage(tabId, {
+          action: 'showToast',
+          message: `🔍 Found ${analysis.claims.length} claims. Verifying with Agent...`,
+          type: 'info'
+        });
+      }
+
+      for (let i = 0; i < analysis.claims.length; i++) {
+        const claimObj = analysis.claims[i];
+        // Only verify if not already verified/debunked with high confidence
+        // But for now, let's verify everything to be sure
+        try {
+          const verification = await verifyClaimWithAgent(claimObj.claim);
+
+          // Update claim object
+          analysis.claims[i] = {
+            ...claimObj,
+            status: verification.status,
+            correction: verification.correction,
+            sources: verification.sources
+          };
+        } catch (e) {
+          console.error(`Failed to verify claim "${claimObj.claim}":`, e);
+        }
+      }
+    }
+
+    // 4. Send back to content script
     if (tabId) {
       chrome.tabs.sendMessage(tabId, {
         action: 'videoClaimsAnalyzed',

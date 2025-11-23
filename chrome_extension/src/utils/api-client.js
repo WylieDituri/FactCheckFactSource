@@ -180,51 +180,41 @@ export async function analyzeTranscript(transcript, apiKey) {
   console.log(`📝 Transcript sample (first 500 chars):\n${formattedTranscript.substring(0, 500)}`);
 
 
-  const prompt = `You are a strict fact-checking assistant. Extract ONLY objective, verifiable claims about the world.
-
+  const prompt = `You are a strict fact-checking assistant. Your goal is to identify claims that are WORTH fact-checking.
+  
 Transcript:
 ${formattedTranscript.substring(0, 30000)} ...
 
 CRITICAL RULES:
-1. **ONLY extract claims that can be verified using external, authoritative sources.**
 
-2. **ACCEPTABLE claims** (extract these):
-   - Historical facts: "The moon landing occurred in 1969"
-   - Scientific statements: "Water boils at 100°C at sea level"
-   - Statistical data: "The global population exceeded 8 billion in 2022"
-   - Geographical facts: "Mount Everest is the tallest mountain"
-   - Published research: "Studies show coffee improves alertness"
-   - Public figures' statements: "The president announced new policies"
+1. **PRIORITIZE "HIGH-STAKES" CLAIMS**:
+   - 🟢 **Extract**: Controversial statements, specific statistics ("GDP grew by 5%"), historical assertions, cause-and-effect claims ("X causes Y"), and bold predictions.
+   - 🔴 **IGNORE**: Trivial facts ("Paris is in France"), definitions ("A cat is an animal"), and subjective feelings ("I felt sad").
 
-3. **HANDLING PERSONAL NARRATIVES** (IMPORTANT):
-   - You MAY extract claims from personal stories IF they contain verifiable facts.
-   - Example: "I moved from Lebanon" -> Extract: "Lebanon is a country/place" (Implicit fact) OR better yet, look for specific claims about the place.
-   - Example: "I got my visa under the H1B program" -> Extract: "The H1B program is a US visa category"
-   - **DO NOT** extract purely subjective feelings ("I felt sad", "I love this place").
-   - **DO** extract objective statements made by the speaker ("The population is 5 million").
+2. **HANDLING PERSONAL NARRATIVES**:
+   - ❌ **STRICTLY REJECT** claims starting with "I", "Me", "My", "We", "Our" unless they contain a verifiable *external* fact.
+   - ❌ **REJECT**: "I moved from Lebanon", "I'm British", "My mom spoke Tagalog", "I lived in England".
+   - 🟢 **ACCEPT**: "The war in Lebanon started in 2006" (extracted from "I moved during the war").
+   - If a sentence is purely personal history ("I was born in Iran"), **IGNORE IT**.
 
-4. **REJECT ONLY**:
-   - Purely subjective opinions ("It is the best country")
-   - unverifiable personal anecdotes ("I ate a sandwich")
-   - Vague statements ("Things are bad")
+3. **VERIFICATION STATUS**:
+   - For each claim, determine if it is TRUE, FALSE, MISLEADING, or UNVERIFIABLE based on your knowledge base.
+   - **PROVIDE SOURCES** if possible (e.g., "According to World Bank...").
 
-5. **If a sentence contains BOTH a personal reference AND a fact**, extract ONLY the fact:
-   - Input: "I read that the Eiffel Tower was built in 1889"
-   - Extract: "The Eiffel Tower was built in 1889"
-
-Return a JSON object with ONLY verifiable claims:
+Return a JSON object:
 {
   "claims": [
     {
       "timestamp": number (seconds),
-      "claim": "The objective, verifiable claim text",
+      "claim": "The specific claim text",
       "status": "VERIFIED" | "DEBUNKED" | "MISLEADING" | "UNVERIFIABLE",
-      "correction": "Brief context or correction"
+      "correction": "Brief context/correction",
+      "sources": ["Source 1", "Source 2"]
     }
   ]
 }
 
-If there are NO verifiable claims, return: { "claims": [] }
+If NO substantial claims are found, return { "claims": [] }.
 `;
 
   const requestBody = {
@@ -258,6 +248,64 @@ If there are NO verifiable claims, return: { "claims": [] }
   } catch (error) {
     console.error("Transcript Analysis Error:", error);
     throw error;
+  }
+}
+
+/**
+ * Verify a claim using the Agent Server
+ */
+export async function verifyClaimWithAgent(claimText) {
+  try {
+    const response = await fetch('http://127.0.0.1:8000/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ claim: claimText })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Agent Server error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const agentText = data.result;
+
+    // Parse Agent Response
+    // Format:
+    // Claim: ...
+    // Search Summary: ...
+    // Sources: ...
+    // Verification: ...
+
+    const summaryMatch = agentText.match(/Search Summary:\s*(.*?)(?=Sources:|Verification:|$)/s);
+    const sourcesMatch = agentText.match(/Sources:\s*(.*?)(?=Verification:|$)/s);
+    const verificationMatch = agentText.match(/Verification:\s*(.*?)(?=$)/s);
+
+    const summary = summaryMatch ? summaryMatch[1].trim() : "No summary provided.";
+    const sourcesText = sourcesMatch ? sourcesMatch[1].trim() : "";
+    const verification = verificationMatch ? verificationMatch[1].trim().toLowerCase() : "unknown";
+
+    // Map verification to status
+    let status = 'UNVERIFIABLE';
+    if (verification.includes('true')) status = 'VERIFIED';
+    if (verification.includes('false')) status = 'DEBUNKED';
+    if (verification.includes('unverifiable')) status = 'UNVERIFIABLE';
+
+    // Parse sources (simple split by newline or comma)
+    const sources = sourcesText.split(/\n|,/).map(s => s.trim()).filter(s => s.length > 0 && s.startsWith('http'));
+
+    return {
+      status,
+      correction: summary,
+      sources
+    };
+
+  } catch (error) {
+    console.error("Agent Verification Error:", error);
+    return {
+      status: 'UNVERIFIABLE',
+      correction: "Could not verify with agent.",
+      sources: []
+    };
   }
 }
 
