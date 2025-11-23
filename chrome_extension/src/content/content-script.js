@@ -609,7 +609,7 @@ function showFactCheckModal(data) {
   const logoUrl = chrome.runtime.getURL('IMG_2285.PNG');
   
   const modalContent = `
-    < div class="factfinder-modal-overlay" >
+    <div class="factfinder-modal-overlay">
       <div class="factfinder-modal-content">
         <div class="factfinder-modal-header">
           <h2 class="factfinder-modal-title">
@@ -672,7 +672,7 @@ function showFactCheckModal(data) {
 
         </div>
       </div>
-    </div >
+    </div>
     `;
 
   modal.innerHTML = modalContent;
