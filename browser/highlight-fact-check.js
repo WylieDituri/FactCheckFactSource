@@ -170,12 +170,15 @@ window.factCheckHighlightedText = async function(text) {
     const client = geminiKey ? new GeminiClient(geminiKey) : new OpenAIClient(openaiKey);
     const modelName = geminiKey ? 'Gemini AI' : 'ChatGPT';
     
-    const factCheckPrompt = `You are a fact-checking AI agent. Analyze the following text and provide a detailed fact-check report.
+    const factCheckPrompt = `You are a fact-checking AI agent. First, determine if the text contains factual claims that need verification.
 
 Text:
 "${text}"
 
-Please provide:
+IMPORTANT: If the text is NOT a declarative statement with verifiable facts (e.g., it's a question, greeting, opinion without facts, navigation text, random text, etc.), respond with EXACTLY this format:
+"NOT_VERIFIABLE: [brief explanation why this text doesn't need fact-checking]"
+
+Otherwise, if it DOES contain factual claims, provide:
 1. **Claims Identified**: List all factual claims made in the text
 2. **Verification Status**: For each claim, indicate if it's TRUE, FALSE, PARTIALLY TRUE, or UNVERIFIABLE
 3. **Evidence**: Provide brief reasoning or context for each verification
@@ -188,24 +191,49 @@ Format your response in a clear, structured way.`;
     
     console.log('✅ Fact-check complete');
     
-    // Format response using same formatter as voice recording
-    const formattedResponse = formatFactCheckResponse(response.text);
+    // Check if the text is not verifiable
+    const isNotVerifiable = response.text.trim().startsWith('NOT_VERIFIABLE:');
     
     // Display results
     const resultsDiv = document.getElementById('highlight-fact-check-results');
     if (resultsDiv) {
-      resultsDiv.innerHTML = `
-        <div style="background: white; padding: 24px; border-radius: 12px; border: 2px solid #ff6b6b; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 2px solid #ffe0e0;">
-            <span style="font-size: 32px;">🔍</span>
-            <strong style="color: #ff6b6b; font-size: 24px;">Fact Check Results</strong>
+      if (isNotVerifiable) {
+        // Extract the explanation after "NOT_VERIFIABLE:"
+        const explanation = response.text.replace('NOT_VERIFIABLE:', '').trim();
+        
+        resultsDiv.innerHTML = `
+          <div style="background: white; padding: 24px; border-radius: 12px; border: 2px solid #9e9e9e; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 2px solid #f0f0f0;">
+              <span style="font-size: 32px;">ℹ️</span>
+              <strong style="color: #757575; font-size: 24px;">No Fact-Checking Needed</strong>
+            </div>
+            <div style="color: #555; line-height: 1.8; font-size: 16px;">
+              <p style="margin: 0; padding: 16px; background: #f5f5f5; border-radius: 8px; border-left: 4px solid #9e9e9e;">
+                ${explanation}
+              </p>
+            </div>
           </div>
-          <div style="color: #333; line-height: 1.8;">${formattedResponse}</div>
-        </div>
-        <div style="margin-top: 16px; padding: 16px; background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); border-radius: 8px; border-left: 4px solid #4caf50;">
-          <strong style="color: #2e7d32; font-size: 16px;">✅ Analysis complete using ${modelName}</strong>
-        </div>
-      `;
+          <div style="margin-top: 16px; padding: 16px; background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); border-radius: 8px; border-left: 4px solid #2196f3;">
+            <strong style="color: #1565c0; font-size: 16px;">💡 Tip: Fact-checking works best with declarative statements containing factual claims.</strong>
+          </div>
+        `;
+      } else {
+        // Format response using same formatter as voice recording
+        const formattedResponse = formatFactCheckResponse(response.text);
+        
+        resultsDiv.innerHTML = `
+          <div style="background: white; padding: 24px; border-radius: 12px; border: 2px solid #ff6b6b; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 2px solid #ffe0e0;">
+              <span style="font-size: 32px;">🔍</span>
+              <strong style="color: #ff6b6b; font-size: 24px;">Fact Check Results</strong>
+            </div>
+            <div style="color: #333; line-height: 1.8;">${formattedResponse}</div>
+          </div>
+          <div style="margin-top: 16px; padding: 16px; background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); border-radius: 8px; border-left: 4px solid #4caf50;">
+            <strong style="color: #2e7d32; font-size: 16px;">✅ Analysis complete using ${modelName}</strong>
+          </div>
+        `;
+      }
     }
     
   } catch (error) {
